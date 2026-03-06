@@ -1,4 +1,4 @@
-// firebase-messaging-sw.js – liegt im Root für FCM
+// firebase-messaging-sw.js
 importScripts('https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js');
 importScripts('https://www.gstatic.com/firebasejs/10.8.0/firebase-messaging-compat.js');
 
@@ -25,4 +25,22 @@ messaging.onBackgroundMessage(payload => {
     requireInteraction: alarm,
     data: { url: 'https://ob3s.github.io/ortswehr/' }
   });
+});
+
+// ── Klick auf Benachrichtigung → App öffnen ───────────────
+self.addEventListener('notificationclick', e => {
+  e.notification.close();
+  const url = e.notification.data?.url || 'https://ob3s.github.io/ortswehr/';
+  e.waitUntil(
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then(wins => {
+      // App bereits offen? Dann fokussieren
+      for (const win of wins) {
+        if (win.url.includes('ob3s.github.io/ortswehr')) {
+          return win.focus();
+        }
+      }
+      // Sonst neu öffnen
+      return clients.openWindow(url);
+    })
+  );
 });
