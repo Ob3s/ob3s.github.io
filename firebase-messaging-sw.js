@@ -13,7 +13,7 @@ firebase.initializeApp({
 
 const messaging = firebase.messaging();
 
-messaging.onBackgroundMessage(payload => {
+function zeigeNotification(payload) {
   const { title, body } = payload.notification || {};
   const alarm    = payload.data?.alarm === 'true';
   const uebungId = payload.data?.uebungId || '';
@@ -21,30 +21,39 @@ messaging.onBackgroundMessage(payload => {
     ? `https://ob3s.github.io/ortswehr/?uebung=${uebungId}`
     : 'https://ob3s.github.io/ortswehr/';
 
-  self.registration.showNotification(title || '🚒 Ortswehr', {
+  return self.registration.showNotification(title || '🚒 Ortswehr', {
     body: body || '',
-    icon: '/ortswehr/icons/icon-192.png',
-    badge: '/ortswehr/icons/icon-192.png',
-    tag: alarm ? 'einsatz' : 'allgemein',
+    icon:    '/ortswehr/icons/icon-192.png',
+    badge:   '/ortswehr/icons/icon-192.png',
+    tag:     alarm ? 'einsatz' : 'allgemein',
     vibrate: alarm ? [200,100,200,100,200,100,400] : [200,100,200],
     requireInteraction: alarm,
-    data: { url }
+    data: { url },
+    // Android Notification Channels
+    android: { channelId: alarm ? 'einsatz' : 'allgemein' },
   });
+}
+
+// App im Hintergrund
+messaging.onBackgroundMessage(payload => {
+  return zeigeNotification(payload);
 });
 
-// ── Klick auf Benachrichtigung → App öffnen ───────────────
+// App im Vordergrund: index.html schickt Nachricht an SW
+self.addEventListener('message', e => {
+  if (e.data?.type === 'SHOW_NOTIFICATION') {
+    zeigeNotification(e.data.payload);
+  }
+  if (e.data === 'SKIP_WAITING') self.skipWaiting();
+});
+
 self.addEventListener('notificationclick', e => {
   e.notification.close();
   const url = e.notification.data?.url || 'https://ob3s.github.io/ortswehr/';
-  e.waitUntil(
-    clients.matchAll({ type: 'window', includeUncontrolled: true }).then(wins => {
-      for (const win of wins) {
-        if (win.url.includes('ob3s.github.io/ortswehr')) {
-          win.location = url;
-          return win.focus();
-        }
-      }
-      return clients.openWindow(url);
-    })
-  );
+  e.waitUntil(clients.matchAll({ type: 'window', includeUncontrolled: true }).then(wins => {
+    for (const win of wins) {
+      if (win.url.includes('ob3s.github.io')) { win.focus(); win.postMessage({ type: 'NAVIGATE', url }); return; }
+    }
+    return clients.openWindow(url);
+  }));
 });
