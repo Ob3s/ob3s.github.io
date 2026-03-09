@@ -1,8 +1,8 @@
-const CACHE = 'ortswehr-deploy-v2';
-const FILES = ['./index.html', './manifest.json'];
+const CACHE = 'ortswehr-deploy-v3';
+const STATIC = ['./manifest.json', './icons/icon-192.png', './icons/icon-512.png'];
 
 self.addEventListener('install', e => {
-  e.waitUntil(caches.open(CACHE).then(c => c.addAll(FILES)));
+  e.waitUntil(caches.open(CACHE).then(c => c.addAll(STATIC)));
   self.skipWaiting();
 });
 self.addEventListener('activate', e => {
@@ -12,9 +12,22 @@ self.addEventListener('activate', e => {
   self.clients.claim();
 });
 self.addEventListener('fetch', e => {
-  // GitHub API immer live, Rest aus Cache
-  if (e.request.url.includes('api.github.com')) return;
+  // Icons/Manifest: cache-first
+  if (STATIC.some(s => e.request.url.includes(s.replace('./', '')))) {
+    e.respondWith(caches.match(e.request).then(r => r || fetch(e.request)));
+    return;
+  }
+  // index.html + alles andere: network-first
   e.respondWith(
-    caches.match(e.request).then(r => r || fetch(e.request))
+    fetch(e.request).then(res => {
+      const clone = res.clone();
+      caches.open(CACHE).then(c => c.put(e.request, clone));
+      return res;
+    }).catch(() => caches.match(e.request))
   );
+});
+
+// Update-Benachrichtigung an alle Clients
+self.addEventListener('message', e => {
+  if (e.data === 'skipWaiting') self.skipWaiting();
 });
