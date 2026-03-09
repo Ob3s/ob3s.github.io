@@ -163,7 +163,7 @@
   <header>
     <span class="logo">🚒</span>
     <h1>Ortswehr Deploy</h1>
-    <span class="version" id="hdr-version" style="opacity:0.6">v1.6</span>
+    <span class="version" id="hdr-version" style="opacity:0.6">v1.7</span>
     <span class="version" id="hdr-status">bereit</span>
   </header>
 
@@ -405,24 +405,33 @@ async function verarbeiteZip(file) {
   log('ZIP geladen: ' + file.name, 'info');
 
   try {
-    // FileReader mit Retry für Android
-    const readFile = (f) => new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload  = e => resolve(e.target.result);
-      reader.onerror = e => reject(e);
-      reader.readAsArrayBuffer(f);
-    });
-    let arrayBuffer;
-    for (let versuch = 1; versuch <= 3; versuch++) {
+    // Prüfen ob Datei wirklich Bytes hat
+    if (file.size === 0) throw new Error('Datei ist leer – bitte nochmal aus dem Chat laden');
+    log('Dateigröße: ' + (file.size/1024).toFixed(1) + ' KB', 'info');
+
+    // Object-URL Methode: funktioniert zuverlässig mit Android content:// URIs
+    let zip;
+    try {
+      const objectUrl = URL.createObjectURL(file);
+      const response  = await fetch(objectUrl);
+      const buffer    = await response.arrayBuffer();
+      URL.revokeObjectURL(objectUrl);
+      zip = await JSZip.loadAsync(buffer);
+    } catch(e1) {
+      // Fallback: direkt als Blob an JSZip
       try {
-        arrayBuffer = await readFile(file);
-        break;
-      } catch(e) {
-        if (versuch === 3) throw e;
-        await new Promise(r => setTimeout(r, 300 * versuch));
+        zip = await JSZip.loadAsync(file);
+      } catch(e2) {
+        // Letzter Fallback: FileReader
+        const buffer = await new Promise((res, rej) => {
+          const r = new FileReader();
+          r.onload = e => res(e.target.result);
+          r.onerror = rej;
+          r.readAsArrayBuffer(file);
+        });
+        zip = await JSZip.loadAsync(buffer);
       }
     }
-    const zip = await JSZip.loadAsync(arrayBuffer);
     _files = {};
     const chips = [];
     const alleZipDateien = Object.keys(zip.files);
