@@ -278,7 +278,8 @@ async function verarbeiteZip(file) {
   log('ZIP geladen: ' + file.name, 'info');
 
   try {
-    const zip = await JSZip.loadAsync(file);
+    const arrayBuffer = await file.arrayBuffer();
+    const zip = await JSZip.loadAsync(arrayBuffer);
     _files = {};
     const chips = [];
     const alleZipDateien = Object.keys(zip.files);
