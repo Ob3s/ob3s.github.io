@@ -194,6 +194,9 @@
         <strong>Erfolgreich deployed!</strong><br>
         <span id="result-detail" style="font-size:0.78rem;opacity:0.8"></span>
       </div>
+
+      <!-- Changelog -->
+      <div id="changelog-box" style="display:none;background:var(--panel2);border:1px solid var(--border);border-radius:10px;padding:1rem;margin-top:0.75rem"></div>
     </div>
 
     <!-- Log -->
@@ -211,6 +214,103 @@
 <!-- JSZip -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <script>
+// ── Changelog ──
+const CHANGELOG = {
+  '2.1.1': {
+    datum: '09.03.2026',
+    punkte: [
+      'Kalender-Import: Änderungen werden jetzt aktualisiert (Titel, Ort, Zeit)',
+      'Zusagen/Anwesenheiten bleiben bei Re-Import erhalten',
+      'Import zeigt: neu · aktualisiert · unverändert',
+    ]
+  },
+  '2.1.0': {
+    datum: '09.03.2026',
+    punkte: [
+      'Ort in Dienste-Liste als eigene Zeile mit 📍',
+    ]
+  },
+  '2.0.9': {
+    datum: '09.03.2026',
+    punkte: [
+      'Startseite: chronologisch nächster Dienst immer oben',
+      'Oegeln-Logik: 2. Karte nur wenn nächster Dienst woanders ist',
+    ]
+  },
+  '2.0.8': {
+    datum: '09.03.2026',
+    punkte: [
+      'Zweites Design "Klassisch" (MP-FEUER-Stil)',
+      'Design-Auswahl im Profil, wird gespeichert',
+    ]
+  },
+  '2.0.7': {
+    datum: '09.03.2026',
+    punkte: [
+      'Abstimmungen: Live-Updates via onSnapshot',
+      'Radio-Button-Style – Optionen direkt anklickbar',
+      'Ergebnisbalken erst nach eigener Stimmabgabe sichtbar',
+    ]
+  },
+  '2.0.6': {
+    datum: '09.03.2026',
+    punkte: [
+      'Dienst-Sichtbarkeit: AGT, Maschinist, Führungskräfte-Filter',
+      'Startseite: Oegeln-Logik für nächste Dienste',
+      'Debug-Logging entfernt',
+    ]
+  },
+  '2.0.5': {
+    datum: '09.03.2026',
+    punkte: [
+      'Stats-Kacheln von Startseite entfernt',
+      'Neuigkeiten immer sichtbar, "Noch keine Neuigkeiten" wenn leer',
+      '⏳ gelb = keine Reaktion, ✅ grün = kommt, ❌ rot = kommt nicht',
+      'SyntaxError in News-Button behoben',
+    ]
+  },
+  '2.0.4': {
+    datum: '09.03.2026',
+    punkte: [
+      'Hotfix: SyntaxError in navigate(news-form)',
+    ]
+  },
+  '2.0.3': {
+    datum: '09.03.2026',
+    punkte: [
+      'Uhr im Header (sekundengenau)',
+      'Abstimmungen: Namen sichtbar, Stimme änderbar',
+      'Alarm-Button wieder voll breit',
+    ]
+  },
+};
+
+function zeigeChangelog(version, punkte) {
+  const el = document.getElementById('changelog-box');
+  if (!el) return;
+  // Erst aus changes.json (live), dann aus hardcoded CHANGELOG
+  const livePunkte = punkte || null;
+  const eintrag = CHANGELOG[version];
+  const anzeigeP = livePunkte || eintrag?.punkte;
+  const datum = eintrag?.datum || new Date().toLocaleDateString('de-DE');
+
+  if (!anzeigeP?.length) {
+    el.innerHTML = '<div style="font-size:0.78rem;color:var(--muted)">Keine Changelog-Einträge für v' + version + '</div>';
+    el.style.display = 'block';
+    return;
+  }
+  el.innerHTML = `
+    <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.6rem">
+      <span style="font-family:var(--mono);font-size:0.8rem;background:#1e3a5f;color:var(--blue);padding:0.2rem 0.6rem;border-radius:20px">v${version}</span>
+      <span style="font-size:0.72rem;color:var(--muted)">${datum}</span>
+      ${livePunkte ? '<span style="font-size:0.68rem;background:#14532d;color:var(--green);padding:0.1rem 0.4rem;border-radius:10px">live</span>' : ''}
+    </div>
+    <ul style="list-style:none;padding:0">
+      ${anzeigeP.map(p => `<li style="font-size:0.8rem;padding:0.25rem 0;border-bottom:1px solid var(--border);display:flex;gap:0.5rem"><span style="color:var(--green);flex-shrink:0">▸</span>${p}</li>`).join('')}
+    </ul>`;
+  el.style.display = 'block';
+}
+
 // ── Settings ──
 function ladeSettings() {
   document.getElementById('gh-token').value = localStorage.getItem('gh_token') || '';
@@ -248,6 +348,7 @@ const REPO_MAP = {
   // ortswehr-Repo
   'index.html':        { repo: 'repo1', path: 'index.html' },
   'version.json':      { repo: 'repo1', path: 'version.json' },
+  'changes.json':      { repo: 'repo1', path: 'changes.json' },
   'sw.js':             { repo: 'repo1', path: 'sw.js' },
   'js/pages.js':       { repo: 'repo1', path: 'js/pages.js' },
   'css/style.css':     { repo: 'repo1', path: 'css/style.css' },
@@ -257,6 +358,8 @@ const REPO_MAP = {
 
 // ── Drag & Drop & File Input ──
 let _files = {}; // { zipPath: { repo, path, content (base64) } }
+let _detectedVersion = '';
+let _detectedChanges = null;
 let _zipName = '';
 
 const dz = document.getElementById('dropzone');
@@ -273,6 +376,8 @@ document.getElementById('file-input').addEventListener('change', e => {
 
 async function verarbeiteZip(file) {
   _zipName = file.name;
+  _detectedVersion = ''; _detectedChanges = null;
+  document.getElementById('changelog-box').style.display = 'none';
   document.getElementById('file-name').textContent = file.name;
   dz.classList.add('ready');
   log('ZIP geladen: ' + file.name, 'info');
@@ -306,6 +411,21 @@ async function verarbeiteZip(file) {
       _files[normiert] = { ...mapping, content, zipPath };
       chips.push('<span class="chip chip-green">✅ ' + normiert + '</span>');
       log('Erkannt: ' + normiert + ' → ' + (mapping.repo === 'repo1' ? 'ortswehr' : 'ob3s.github.io'), 'ok');
+      // Changelog sofort anzeigen wenn version.json oder changes.json erkannt
+      if (normiert === 'version.json') {
+        try {
+          const vRaw = atob(content);
+          const v = JSON.parse(vRaw).version || '';
+          if (v) { _detectedVersion = v; zeigeChangelog(v, _detectedChanges); }
+        } catch(e) {}
+      }
+      if (normiert === 'changes.json') {
+        try {
+          const ch = JSON.parse(atob(content));
+          _detectedChanges = ch.punkte || [];
+          if (_detectedVersion) zeigeChangelog(_detectedVersion, _detectedChanges);
+        } catch(e) {}
+      }
     }
 
     document.getElementById('file-chips').innerHTML = chips.join('');
@@ -379,8 +499,16 @@ async function startDeploy() {
       version = JSON.parse(vRaw).version || '';
     } catch(e) {}
   }
-  const commitMsg = version ? `Update v${version}` : `Update via Deploy-Tool ${new Date().toLocaleDateString('de-DE')}`;
-  log('Commit-Message: ' + commitMsg, 'head');
+  // Commit-Message aus changes.json aufbauen falls vorhanden
+  let commitMsg = version ? `v${version}` : `Update ${new Date().toLocaleDateString('de-DE')}`;
+  if (_files['changes.json']) {
+    try {
+      const ch = JSON.parse(atob(_files['changes.json'].content));
+      const punkte = (ch.punkte || []).map(p => '- ' + p).join('\n');
+      commitMsg = `v${version}\n\n${punkte}`;
+    } catch(e) {}
+  }
+  log('Commit-Message:\n' + commitMsg, 'head');
 
   let ok = 0, fehler = 0;
   for (let i = 0; i < dateien.length; i++) {
