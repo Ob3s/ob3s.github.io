@@ -147,7 +147,7 @@
   <header>
     <span class="logo">🚒</span>
     <h1>Ortswehr Deploy</h1>
-    <span class="version" id="hdr-version" style="opacity:0.6">v1.3</span>
+    <span class="version" id="hdr-version" style="opacity:0.6">v1.4</span>
     <span class="version" id="hdr-status">bereit</span>
   </header>
 
@@ -384,7 +384,13 @@ async function verarbeiteZip(file) {
   log('ZIP geladen: ' + file.name, 'info');
 
   try {
-    const arrayBuffer = await file.arrayBuffer();
+    // FileReader für maximale Android-Kompatibilität
+    const arrayBuffer = await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload  = e => resolve(e.target.result);
+      reader.onerror = e => reject(e);
+      reader.readAsArrayBuffer(file);
+    });
     const zip = await JSZip.loadAsync(arrayBuffer);
     _files = {};
     const chips = [];
