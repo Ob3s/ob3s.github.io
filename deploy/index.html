@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Deploy">
+<meta name="theme-color" content="#cc2200">
+<link rel="manifest" href="manifest.json">
+<title>Ortswehr Deploy</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap');
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --red:    #cc2200;
+    --bg:     #0f1117;
+    --panel:  #1a1d26;
+    --panel2: #20242f;
+    --border: #2e3244;
+    --text:   #e2e8f0;
+    --muted:  #64748b;
+    --green:  #22c55e;
+    --yellow: #f59e0b;
+    --blue:   #3b82f6;
+    --mono:   'JetBrains Mono', monospace;
+    --sans:   'IBM Plex Sans', sans-serif;
+  }
+
+  html, body {
+    height: 100%; background: var(--bg); color: var(--text);
+    font-family: var(--sans); -webkit-font-smoothing: antialiased;
+    overflow: hidden;
+  }
+
+  /* ── Shell ── */
+  .shell { display: flex; flex-direction: column; height: 100%; }
+
+  header {
+    background: var(--red);
+    padding: env(safe-area-inset-top, 0px) 1rem 0;
+    height: calc(52px + env(safe-area-inset-top, 0px));
+    display: flex; align-items: flex-end; padding-bottom: 0.7rem;
+    gap: 0.75rem; flex-shrink: 0;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.4);
+  }
+  header .logo { font-size: 1.3rem; }
+  header h1 { font-size: 1rem; font-weight: 600; flex: 1; }
+  header .version { font-family: var(--mono); font-size: 0.7rem; opacity: 0.7; }
+
+  main { flex: 1; overflow-y: auto; padding: 1rem; -webkit-overflow-scrolling: touch; }
+
+  /* ── Cards ── */
+  .card {
+    background: var(--panel); border: 1px solid var(--border);
+    border-radius: 12px; padding: 1.1rem; margin-bottom: 0.9rem;
+  }
+  .card h2 { font-size: 0.9rem; font-weight: 600; margin-bottom: 0.6rem; display: flex; align-items: center; gap: 0.4rem; }
+  .card-sub { font-size: 0.78rem; color: var(--muted); margin-bottom: 0.75rem; line-height: 1.5; }
+
+  /* ── Drop Zone ── */
+  .dropzone {
+    border: 2px dashed var(--border); border-radius: 10px;
+    padding: 2rem 1rem; text-align: center; cursor: pointer;
+    transition: all 0.2s; margin-bottom: 0.75rem;
+    background: var(--panel2);
+  }
+  .dropzone.drag { border-color: var(--red); background: rgba(204,34,0,0.08); }
+  .dropzone.ready { border-color: var(--green); background: rgba(34,197,94,0.06); }
+  .dropzone-icon { font-size: 2rem; margin-bottom: 0.5rem; }
+  .dropzone-text { font-size: 0.85rem; color: var(--muted); }
+  .dropzone-file { font-size: 0.85rem; color: var(--green); font-family: var(--mono); margin-top: 0.3rem; }
+  #file-input { display: none; }
+
+  /* ── Buttons ── */
+  .btn {
+    display: flex; align-items: center; justify-content: center; gap: 0.4rem;
+    width: 100%; padding: 0.8rem; border-radius: 10px; border: none;
+    cursor: pointer; font-family: var(--sans); font-size: 0.95rem; font-weight: 600;
+    transition: opacity 0.15s, transform 0.1s;
+    -webkit-tap-highlight-color: transparent;
+    margin-top: 0.6rem;
+  }
+  .btn:active { transform: scale(0.97); opacity: 0.85; }
+  .btn:disabled { opacity: 0.35; cursor: not-allowed; transform: none; }
+  .btn-red   { background: var(--red);   color: #fff; }
+  .btn-ghost { background: var(--panel2); color: var(--text); border: 1px solid var(--border); }
+
+  /* ── Progress ── */
+  .progress-wrap { margin: 0.75rem 0; display: none; }
+  .progress-bar { background: var(--border); border-radius: 4px; height: 8px; overflow: hidden; }
+  .progress-fill { height: 100%; background: var(--red); border-radius: 4px; transition: width 0.25s; }
+  .progress-text { font-size: 0.75rem; color: var(--muted); margin-top: 0.4rem; font-family: var(--mono); }
+
+  /* ── Log ── */
+  .log-wrap {
+    background: var(--panel2); border: 1px solid var(--border);
+    border-radius: 10px; overflow: hidden; margin-top: 0.75rem;
+  }
+  .log-header {
+    padding: 0.5rem 0.75rem; border-bottom: 1px solid var(--border);
+    font-size: 0.7rem; font-weight: 600; color: var(--muted);
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .log-body { padding: 0.5rem; max-height: 220px; overflow-y: auto; font-family: var(--mono); font-size: 0.7rem; }
+  .log-entry { padding: 0.15rem 0.25rem; border-radius: 3px; line-height: 1.6; }
+  .log-entry.ok    { color: var(--green); }
+  .log-entry.warn  { color: var(--yellow); }
+  .log-entry.error { color: #f87171; }
+  .log-entry.info  { color: #94a3b8; }
+  .log-entry.head  { color: var(--blue); font-weight: 600; margin-top: 0.25rem; }
+  .log-clear { background: none; border: none; color: var(--muted); cursor: pointer; font-size: 0.7rem; }
+
+  /* ── Settings ── */
+  label { display: block; font-size: 0.7rem; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.3rem; }
+  input {
+    width: 100%; background: var(--panel2); border: 1px solid var(--border);
+    border-radius: 8px; padding: 0.6rem 0.8rem; color: var(--text);
+    font-family: var(--mono); font-size: 0.82rem; margin-bottom: 0.75rem;
+  }
+  input:focus { outline: none; border-color: var(--red); }
+
+  /* ── Status Chips ── */
+  .chip-row { display: flex; gap: 0.4rem; flex-wrap: wrap; margin-bottom: 0.5rem; }
+  .chip { padding: 0.2rem 0.6rem; border-radius: 20px; font-size: 0.68rem; font-weight: 600; }
+  .chip-green  { background: #14532d; color: var(--green); }
+  .chip-red    { background: #450a0a; color: #f87171; }
+  .chip-yellow { background: #451a03; color: var(--yellow); }
+  .chip-gray   { background: var(--panel2); color: var(--muted); border: 1px solid var(--border); }
+
+  /* ── Result ── */
+  .result-ok {
+    background: #14532d; border: 1px solid #166534; border-radius: 10px;
+    padding: 1rem; text-align: center; margin-top: 0.75rem;
+    font-size: 0.9rem; color: var(--green); display: none;
+  }
+  .result-ok .big { font-size: 2rem; margin-bottom: 0.3rem; }
+
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+</style>
+</head>
+<body>
+<div class="shell">
+
+  <header>
+    <span class="logo">🚒</span>
+    <h1>Ortswehr Deploy</h1>
+    <span class="version" id="hdr-status">bereit</span>
+  </header>
+
+  <main>
+
+    <!-- Settings -->
+    <div class="card" id="settings-card">
+      <h2>⚙️ Einstellungen</h2>
+      <label>GitHub Token</label>
+      <input type="password" id="gh-token" placeholder="ghp_..." autocomplete="off">
+      <div style="display:flex;gap:0.5rem">
+        <div style="flex:1"><label>User</label><input id="gh-user" value="Ob3s"></div>
+        <div style="flex:1"><label>Repo Ortswehr</label><input id="gh-repo1" value="ortswehr"></div>
+      </div>
+      <label>Root-Repo (firebase-messaging-sw.js)</label>
+      <input id="gh-repo2" value="ob3s.github.io">
+      <button class="btn btn-ghost" onclick="speichereSettings()" style="margin-top:0">💾 Speichern</button>
+    </div>
+
+    <!-- Deploy -->
+    <div class="card">
+      <h2>📦 Update deployen</h2>
+      <div class="card-sub">ZIP-Datei aus dem Chat hier reinwerfen oder antippen.</div>
+
+      <div class="dropzone" id="dropzone" onclick="document.getElementById('file-input').click()">
+        <div class="dropzone-icon">📂</div>
+        <div class="dropzone-text">ZIP antippen oder reinziehen</div>
+        <div class="dropzone-file" id="file-name"></div>
+      </div>
+      <input type="file" id="file-input" accept=".zip">
+
+      <div class="chip-row" id="file-chips"></div>
+
+      <div class="progress-wrap" id="progress-wrap">
+        <div class="progress-bar"><div class="progress-fill" id="prog-fill" style="width:0%"></div></div>
+        <div class="progress-text" id="prog-text">Vorbereitung...</div>
+      </div>
+
+      <button class="btn btn-red" id="btn-deploy" onclick="startDeploy()" disabled>
+        🚀 Deployen
+      </button>
+
+      <div class="result-ok" id="result-ok">
+        <div class="big">✅</div>
+        <strong>Erfolgreich deployed!</strong><br>
+        <span id="result-detail" style="font-size:0.78rem;opacity:0.8"></span>
+      </div>
+    </div>
+
+    <!-- Log -->
+    <div class="log-wrap">
+      <div class="log-header">
+        ⬛ Protokoll
+        <button class="log-clear" onclick="clearLog()">löschen</button>
+      </div>
+      <div class="log-body" id="log-body"></div>
+    </div>
+
+  </main>
+</div>
+
+<!-- JSZip -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script>
+// ── Settings ──
+function ladeSettings() {
+  document.getElementById('gh-token').value = localStorage.getItem('gh_token') || '';
+  document.getElementById('gh-user').value  = localStorage.getItem('gh_user')  || 'Ob3s';
+  document.getElementById('gh-repo1').value = localStorage.getItem('gh_repo1') || 'ortswehr';
+  document.getElementById('gh-repo2').value = localStorage.getItem('gh_repo2') || 'ob3s.github.io';
+  if (localStorage.getItem('gh_token')) {
+    document.getElementById('settings-card').style.display = 'none';
+    log('Token geladen ✅', 'ok');
+  }
+}
+function speichereSettings() {
+  localStorage.setItem('gh_token', document.getElementById('gh-token').value.trim());
+  localStorage.setItem('gh_user',  document.getElementById('gh-user').value.trim());
+  localStorage.setItem('gh_repo1', document.getElementById('gh-repo1').value.trim());
+  localStorage.setItem('gh_repo2', document.getElementById('gh-repo2').value.trim());
+  document.getElementById('settings-card').style.display = 'none';
+  log('Einstellungen gespeichert ✅', 'ok');
+}
+
+// ── Log ──
+function log(msg, type='info') {
+  const el = document.getElementById('log-body');
+  const d  = document.createElement('div');
+  d.className = 'log-entry ' + type;
+  const ts = new Date().toLocaleTimeString('de-DE');
+  d.textContent = '[' + ts + '] ' + msg;
+  el.appendChild(d);
+  el.scrollTop = el.scrollHeight;
+}
+function clearLog() { document.getElementById('log-body').innerHTML = ''; }
+
+// ── Datei-Mapping: welche Datei kommt aus dem ZIP in welches Repo/Pfad ──
+const REPO_MAP = {
+  // ortswehr-Repo
+  'index.html':        { repo: 'repo1', path: 'index.html' },
+  'version.json':      { repo: 'repo1', path: 'version.json' },
+  'sw.js':             { repo: 'repo1', path: 'sw.js' },
+  'js/pages.js':       { repo: 'repo1', path: 'js/pages.js' },
+  'css/style.css':     { repo: 'repo1', path: 'css/style.css' },
+  // ob3s.github.io-Repo
+  'firebase-messaging-sw.js': { repo: 'repo2', path: 'firebase-messaging-sw.js' },
+};
+
+// ── Drag & Drop & File Input ──
+let _files = {}; // { zipPath: { repo, path, content (base64) } }
+let _zipName = '';
+
+const dz = document.getElementById('dropzone');
+dz.addEventListener('dragover',  e => { e.preventDefault(); dz.classList.add('drag'); });
+dz.addEventListener('dragleave', () => dz.classList.remove('drag'));
+dz.addEventListener('drop', e => {
+  e.preventDefault(); dz.classList.remove('drag');
+  const f = e.dataTransfer.files[0];
+  if (f) verarbeiteZip(f);
+});
+document.getElementById('file-input').addEventListener('change', e => {
+  if (e.target.files[0]) verarbeiteZip(e.target.files[0]);
+});
+
+async function verarbeiteZip(file) {
+  _zipName = file.name;
+  document.getElementById('file-name').textContent = file.name;
+  dz.classList.add('ready');
+  log('ZIP geladen: ' + file.name, 'info');
+
+  const zip = await JSZip.loadAsync(file);
+  _files = {};
+  const chips = [];
+
+  for (const [zipPath, zipFile] of Object.entries(zip.files)) {
+    if (zipFile.dir) continue;
+    // Normiere Pfad: entferne führenden Ordnernamen (update-v2.0.8/js/pages.js → js/pages.js)
+    const parts  = zipPath.split('/');
+    const normiert = parts.length > 2 ? parts.slice(1).join('/') : parts[parts.length-1];
+
+    const mapping = REPO_MAP[normiert];
+    if (!mapping) {
+      log('Unbekannte Datei übersprungen: ' + zipPath, 'warn');
+      continue;
+    }
+
+    const content = await zipFile.async('base64');
+    _files[normiert] = { ...mapping, content, zipPath };
+    chips.push(`<span class="chip chip-green">✅ ${normiert}</span>`);
+    log('Erkannt: ' + normiert + ' → ' + mapping.repo, 'ok');
+  }
+
+  document.getElementById('file-chips').innerHTML = chips.join('');
+  const n = Object.keys(_files).length;
+  if (n > 0) {
+    document.getElementById('btn-deploy').disabled = false;
+    document.getElementById('btn-deploy').textContent = '🚀 ' + n + ' Datei' + (n!==1?'en':'') + ' deployen';
+  } else {
+    log('Keine bekannten Dateien im ZIP gefunden!', 'error');
+  }
+}
+
+// ── GitHub API ──
+async function ghRequest(method, url, body) {
+  const token = localStorage.getItem('gh_token');
+  const res = await fetch(url, {
+    method,
+    headers: {
+      'Authorization': 'token ' + token,
+      'Content-Type': 'application/json',
+      'Accept': 'application/vnd.github.v3+json',
+    },
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  if (!res.ok && res.status !== 404) {
+    const err = await res.text();
+    throw new Error(res.status + ' ' + err.slice(0,200));
+  }
+  return res.status === 404 ? null : await res.json();
+}
+
+async function pushDatei(repo, path, base64Content, commitMsg) {
+  const user = localStorage.getItem('gh_user') || 'Ob3s';
+  const url  = `https://api.github.com/repos/${user}/${repo}/contents/${path}`;
+  // Aktuellen SHA holen (nötig für Updates)
+  const existing = await ghRequest('GET', url);
+  const sha = existing?.sha;
+  const body = {
+    message: commitMsg,
+    content: base64Content,
+    ...(sha ? { sha } : {}),
+  };
+  await ghRequest('PUT', url, body);
+}
+
+// ── Deploy ──
+async function startDeploy() {
+  const token = localStorage.getItem('gh_token');
+  if (!token) { log('Kein Token gespeichert! Einstellungen öffnen.', 'error'); return; }
+
+  const dateien = Object.entries(_files);
+  if (!dateien.length) { log('Keine Dateien zum Deployen', 'error'); return; }
+
+  const user  = localStorage.getItem('gh_user')  || 'Ob3s';
+  const repo1 = localStorage.getItem('gh_repo1') || 'ortswehr';
+  const repo2 = localStorage.getItem('gh_repo2') || 'ob3s.github.io';
+
+  document.getElementById('btn-deploy').disabled = true;
+  document.getElementById('result-ok').style.display = 'none';
+  document.getElementById('progress-wrap').style.display = 'block';
+  document.getElementById('hdr-status').textContent = 'deploye...';
+
+  // Version aus version.json extrahieren (falls vorhanden)
+  let version = '';
+  if (_files['version.json']) {
+    try {
+      const vRaw = atob(_files['version.json'].content);
+      version = JSON.parse(vRaw).version || '';
+    } catch(e) {}
+  }
+  const commitMsg = version ? `Update v${version}` : `Update via Deploy-Tool ${new Date().toLocaleDateString('de-DE')}`;
+  log('Commit-Message: ' + commitMsg, 'head');
+
+  let ok = 0, fehler = 0;
+  for (let i = 0; i < dateien.length; i++) {
+    const [normiert, info] = dateien[i];
+    const repo = info.repo === 'repo1' ? repo1 : repo2;
+    const pct  = Math.round((i / dateien.length) * 100);
+    document.getElementById('prog-fill').style.width  = pct + '%';
+    document.getElementById('prog-text').textContent  = `${i+1}/${dateien.length}: ${normiert}`;
+    log(`Pushe ${normiert} → ${repo}/${info.path}`, 'info');
+    try {
+      await pushDatei(repo, info.path, info.content, commitMsg);
+      log(`✅ ${normiert}`, 'ok');
+      ok++;
+    } catch(e) {
+      log(`❌ ${normiert}: ${e.message}`, 'error');
+      fehler++;
+    }
+  }
+
+  document.getElementById('prog-fill').style.width = '100%';
+  document.getElementById('prog-text').textContent = 'Fertig!';
+  document.getElementById('hdr-status').textContent = ok + '/' + dateien.length + ' ✅';
+
+  if (ok > 0) {
+    document.getElementById('result-ok').style.display = 'block';
+    document.getElementById('result-detail').textContent =
+      ok + ' Datei' + (ok!==1?'en':'') + ' gepusht' + (fehler ? ` · ${fehler} Fehler` : '') +
+      (version ? ` · v${version}` : '');
+    log(`Deploy abgeschlossen: ${ok} OK, ${fehler} Fehler`, ok && !fehler ? 'ok' : 'warn');
+  } else {
+    log('Deploy fehlgeschlagen!', 'error');
+  }
+
+  document.getElementById('btn-deploy').disabled = false;
+}
+
+// ── Service Worker ──
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('./sw.js').catch(() => {});
+}
+
+// Init
+ladeSettings();
+</script>
+</body>
+</html>
