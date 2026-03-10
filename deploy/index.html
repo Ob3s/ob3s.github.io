@@ -163,7 +163,7 @@
   <header>
     <span class="logo">🚒</span>
     <h1>Ortswehr Deploy</h1>
-    <span class="version" id="hdr-version" style="opacity:0.6">v2.1</span>
+    <span class="version" id="hdr-version" style="opacity:0.6">v2.2</span>
     <span class="version" id="hdr-status">bereit</span>
   </header>
 
@@ -408,33 +408,55 @@ async function verarbeiteZip(file) {
     if (file.size === 0) throw new Error('Datei ist leer');
     log('Dateigröße: ' + (file.size/1024).toFixed(1) + ' KB · Typ: ' + (file.type||'unbekannt'), 'info');
 
-    // JSON-Bundle: mehrere Lesemethoden probieren (Android-Kompatibilität)
+    // JSON-Bundle: zuverlässigstes Verfahren für Android WebView
     const isJson = file.name.endsWith('.json') || file.type === 'application/json' || file.type === '';
     if (isJson) {
       let text = null;
-      // 1. Versuch: modernes file.text() (beste Android-Kompatibilität)
-      if (typeof file.text === 'function') {
-        try { text = await file.text(); } catch(e) {}
+      const istNull = t => !t || t.charCodeAt(0) === 0;
+
+      // 1. Response-API (zuverlässigste Methode auf Android)
+      try {
+        const t = await new Response(file).text();
+        if (!istNull(t)) text = t;
+      } catch(e) {}
+
+      // 2. file.text()
+      if (istNull(text) && typeof file.text === 'function') {
+        try {
+          const t = await file.text();
+          if (!istNull(t)) text = t;
+        } catch(e) {}
       }
-      // 2. Versuch: FileReader readAsText
-      if (!text || text.charCodeAt(0) === 0) {
-        text = await new Promise((res, rej) => {
-          const r = new FileReader();
-          r.onload = e => res(e.target.result);
-          r.onerror = rej;
-          r.readAsText(file, 'utf-8');
-        });
+
+      // 3. FileReader readAsDataURL → base64 → decode (Android Fallback)
+      if (istNull(text)) {
+        try {
+          const dataUrl = await new Promise((res, rej) => {
+            const r = new FileReader();
+            r.onload = e => res(e.target.result);
+            r.onerror = rej;
+            r.readAsDataURL(file);
+          });
+          // dataUrl = "data:application/json;base64,..."
+          const b64 = dataUrl.split(',')[1];
+          text = decodeURIComponent(escape(atob(b64)));
+        } catch(e) {}
       }
-      // 3. Versuch: ArrayBuffer → TextDecoder
-      if (!text || text.charCodeAt(0) === 0) {
-        const buf = await new Promise((res, rej) => {
-          const r = new FileReader();
-          r.onload = e => res(e.target.result);
-          r.onerror = rej;
-          r.readAsArrayBuffer(file);
-        });
-        text = new TextDecoder('utf-8').decode(new Uint8Array(buf));
+
+      // 4. FileReader readAsText
+      if (istNull(text)) {
+        try {
+          text = await new Promise((res, rej) => {
+            const r = new FileReader();
+            r.onload = e => res(e.target.result);
+            r.onerror = rej;
+            r.readAsText(file, 'utf-8');
+          });
+        } catch(e) {}
       }
+
+      if (istNull(text)) throw new Error('Datei konnte nicht gelesen werden (alle Methoden fehlgeschlagen)');
+
       try {
         const bundle = JSON.parse(text);
         if (bundle.files) {
@@ -443,7 +465,7 @@ async function verarbeiteZip(file) {
           return;
         }
       } catch(e) {
-        throw new Error('JSON konnte nicht gelesen werden: ' + e.message);
+        throw new Error('JSON ungültig: ' + e.message);
       }
     }
 
