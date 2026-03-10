@@ -163,7 +163,7 @@
   <header>
     <span class="logo">🚒</span>
     <h1>Ortswehr Deploy</h1>
-    <span class="version" id="hdr-version" style="opacity:0.6">v1.7</span>
+    <span class="version" id="hdr-version" style="opacity:0.6">v1.8</span>
     <span class="version" id="hdr-status">bereit</span>
   </header>
 
@@ -195,10 +195,10 @@
 
       <div class="dropzone" id="dropzone" onclick="document.getElementById('file-input').click()">
         <div class="dropzone-icon">📂</div>
-        <div class="dropzone-text">ZIP antippen oder reinziehen</div>
+        <div class="dropzone-text">Update antippen oder reinziehen</div>
         <div class="dropzone-file" id="file-name"></div>
       </div>
-      <input type="file" id="file-input" accept=".zip">
+      <input type="file" id="file-input" accept=".zip,.json">
 
       <div class="chip-row" id="file-chips"></div>
 
@@ -405,33 +405,41 @@ async function verarbeiteZip(file) {
   log('ZIP geladen: ' + file.name, 'info');
 
   try {
-    // Prüfen ob Datei wirklich Bytes hat
-    if (file.size === 0) throw new Error('Datei ist leer – bitte nochmal aus dem Chat laden');
-    log('Dateigröße: ' + (file.size/1024).toFixed(1) + ' KB', 'info');
+    if (file.size === 0) throw new Error('Datei ist leer');
+    log('Dateigröße: ' + (file.size/1024).toFixed(1) + ' KB · Typ: ' + (file.type||'unbekannt'), 'info');
 
-    // Object-URL Methode: funktioniert zuverlässig mit Android content:// URIs
-    let zip;
-    try {
-      const objectUrl = URL.createObjectURL(file);
-      const response  = await fetch(objectUrl);
-      const buffer    = await response.arrayBuffer();
-      URL.revokeObjectURL(objectUrl);
-      zip = await JSZip.loadAsync(buffer);
-    } catch(e1) {
-      // Fallback: direkt als Blob an JSZip
+    // JSON-Bundle? (.json oder .zip mit JSON-Inhalt)
+    const isJson = file.name.endsWith('.json') || file.type === 'application/json';
+
+    // Bytes lesen via FileReader
+    const rawBuffer = await new Promise((res, rej) => {
+      const r = new FileReader();
+      r.onload = e => res(e.target.result);
+      r.onerror = rej;
+      r.readAsArrayBuffer(file);
+    });
+
+    // Erste 4 Bytes prüfen
+    const magic = new Uint8Array(rawBuffer.slice(0,4));
+    const magicHex = Array.from(magic).map(b=>b.toString(16).padStart(2,'0')).join(' ');
+    const isPK = magic[0]===0x50 && magic[1]===0x4B;
+    log('Magic bytes: ' + magicHex + (isPK ? ' ✅ ZIP' : ' ⚠️ kein ZIP!'), isPK ? 'info' : 'warn');
+
+    if (!isPK) {
+      // Evtl. Base64-kodiert oder JSON-Bundle
       try {
-        zip = await JSZip.loadAsync(file);
-      } catch(e2) {
-        // Letzter Fallback: FileReader
-        const buffer = await new Promise((res, rej) => {
-          const r = new FileReader();
-          r.onload = e => res(e.target.result);
-          r.onerror = rej;
-          r.readAsArrayBuffer(file);
-        });
-        zip = await JSZip.loadAsync(buffer);
-      }
+        const text = new TextDecoder().decode(rawBuffer);
+        const bundle = JSON.parse(text);
+        if (bundle.files) {
+          log('JSON-Bundle erkannt ✅', 'ok');
+          verarbeiteBundle(bundle);
+          return;
+        }
+      } catch(e) {}
+      throw new Error('Datei ist kein gültiges ZIP (Magic: ' + magicHex + ')');
     }
+
+    const zip = await JSZip.loadAsync(rawBuffer);
     _files = {};
     const chips = [];
     const alleZipDateien = Object.keys(zip.files);
@@ -491,6 +499,31 @@ async function verarbeiteZip(file) {
     document.getElementById('btn-deploy').disabled = true;
     document.getElementById('btn-deploy').textContent = '🚀 Deployen';
   }
+}
+
+// ── Bundle verarbeiten (JSON-Format) ──
+function verarbeiteBundle(bundle) {
+  const version = bundle.version || '';
+  if (version) { _detectedVersion = version; zeigeChangelog(version, bundle.punkte); }
+  _files = {};
+  for (const [name, b64] of Object.entries(bundle.files || {})) {
+    const normiert = name.replace(/^[^/]+\//, '');
+    const mapping = REPO_MAP[normiert];
+    if (mapping) {
+      _files[normiert] = { ...mapping, content: b64 };
+      log('Erkannt: ' + normiert + ' → ' + (mapping.repo==='repo1'?'ortswehr':'ob3s.github.io'), 'ok');
+      if (normiert === 'changes.json') {
+        try { _detectedChanges = JSON.parse(atob(b64)).punkte||[]; zeigeChangelog(_detectedVersion, _detectedChanges); } catch(e){}
+      }
+      if (normiert === 'version.json') {
+        try { const v = JSON.parse(atob(b64)).version||''; if(v){_detectedVersion=v; zeigeChangelog(v,_detectedChanges);} } catch(e){}
+      }
+    }
+  }
+  const n = Object.keys(_files).length;
+  log(n + ' Datei' + (n!==1?'en':'') + ' bereit zum Deployen', n>0?'ok':'warn');
+  if (n > 0) document.getElementById('btn-deploy').disabled = false;
+  dz.classList.add('ready');
 }
 
 // ── GitHub API ──
