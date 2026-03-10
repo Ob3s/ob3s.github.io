@@ -372,7 +372,6 @@ const REPO_MAP = {
   'version.json':      { repo: 'repo1', path: 'version.json' },
   'changes.json':      { repo: 'repo1', path: 'changes.json' },
   'sw.js':              { repo: 'repo1', path: 'sw.js' },
-  'sw.js':             { repo: 'repo1', path: 'sw.js' },
   'js/pages.js':       { repo: 'repo1', path: 'js/pages.js' },
   'css/style.css':     { repo: 'repo1', path: 'css/style.css' },
   // ob3s.github.io-Repo
@@ -508,7 +507,8 @@ function verarbeiteBundle(bundle) {
   if (version) { _detectedVersion = version; zeigeChangelog(version, bundle.punkte); }
   _files = {};
   for (const [name, b64] of Object.entries(bundle.files || {})) {
-    const normiert = name.replace(/^[^/]+\//, '');
+    // Erst direkt suchen, dann mit Präfix-Entfernung (für ZIP-Bundles)
+    const normiert = REPO_MAP[name] ? name : name.replace(/^[^/]+\//, '');
     const mapping = REPO_MAP[normiert];
     if (mapping) {
       _files[normiert] = { ...mapping, content: b64 };
