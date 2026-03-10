@@ -163,7 +163,7 @@
   <header>
     <span class="logo">🚒</span>
     <h1>Ortswehr Deploy</h1>
-    <span class="version" id="hdr-version" style="opacity:0.6">v1.9</span>
+    <span class="version" id="hdr-version" style="opacity:0.6">v2.0</span>
     <span class="version" id="hdr-status">bereit</span>
   </header>
 
@@ -402,42 +402,43 @@ async function verarbeiteZip(file) {
   document.getElementById('changelog-box').style.display = 'none';
   document.getElementById('file-name').textContent = file.name;
   dz.classList.add('ready');
-  log('ZIP geladen: ' + file.name, 'info');
+  log('Geladen: ' + file.name, 'info');
 
   try {
     if (file.size === 0) throw new Error('Datei ist leer');
     log('Dateigröße: ' + (file.size/1024).toFixed(1) + ' KB · Typ: ' + (file.type||'unbekannt'), 'info');
 
-    // JSON-Bundle? (.json oder .zip mit JSON-Inhalt)
-    const isJson = file.name.endsWith('.json') || file.type === 'application/json';
-
-    // Bytes lesen via FileReader
-    const rawBuffer = await new Promise((res, rej) => {
-      const r = new FileReader();
-      r.onload = e => res(e.target.result);
-      r.onerror = rej;
-      r.readAsArrayBuffer(file);
-    });
-
-    // Erste 4 Bytes prüfen
-    const magic = new Uint8Array(rawBuffer.slice(0,4));
-    const magicHex = Array.from(magic).map(b=>b.toString(16).padStart(2,'0')).join(' ');
-    const isPK = magic[0]===0x50 && magic[1]===0x4B;
-    log('Magic bytes: ' + magicHex + (isPK ? ' ✅ ZIP' : ' ⚠️ kein ZIP!'), isPK ? 'info' : 'warn');
-
-    if (!isPK) {
-      // Evtl. Base64-kodiert oder JSON-Bundle
+    // JSON-Bundle: direkt als Text lesen (kein ArrayBuffer, kein Magic-Byte-Check)
+    const isJson = file.name.endsWith('.json') || file.type === 'application/json' || file.type === '';
+    if (isJson) {
+      const text = await new Promise((res, rej) => {
+        const r = new FileReader();
+        r.onload = e => res(e.target.result);
+        r.onerror = rej;
+        r.readAsText(file, 'utf-8');
+      });
       try {
-        const text = new TextDecoder().decode(rawBuffer);
         const bundle = JSON.parse(text);
         if (bundle.files) {
           log('JSON-Bundle erkannt ✅', 'ok');
           verarbeiteBundle(bundle);
           return;
         }
-      } catch(e) {}
-      throw new Error('Datei ist kein gültiges ZIP (Magic: ' + magicHex + ')');
+      } catch(e) {
+        throw new Error('JSON konnte nicht gelesen werden: ' + e.message);
+      }
     }
+
+    // ZIP-Pfad (Fallback für alte Bundles)
+    const rawBuffer = await new Promise((res, rej) => {
+      const r = new FileReader();
+      r.onload = e => res(e.target.result);
+      r.onerror = rej;
+      r.readAsArrayBuffer(file);
+    });
+    const magic = new Uint8Array(rawBuffer.slice(0,4));
+    const isPK = magic[0]===0x50 && magic[1]===0x4B;
+    if (!isPK) throw new Error('Datei ist weder JSON noch ZIP');
 
     const zip = await JSZip.loadAsync(rawBuffer);
     _files = {};
@@ -492,7 +493,7 @@ async function verarbeiteZip(file) {
       log('Keine bekannten Dateien erkannt! ZIP-Struktur prüfen.', 'error');
     }
   } catch(e) {
-    log('ZIP konnte nicht gelesen werden – bitte nochmal antippen 🔄', 'warn');
+    log('Datei konnte nicht gelesen werden: ' + e.message, 'error');
     dz.classList.remove('ready');
     document.getElementById('file-name').textContent = '';
     document.getElementById('file-input').value = '';
