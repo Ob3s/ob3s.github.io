@@ -227,7 +227,7 @@
     <div class="logo">🚒</div>
     <div class="header-text">
       <h1>ob3s<span>.</span>github<span>.</span>io</h1>
-      <p>Projekt-Übersicht · Beeskow LZ Oegeln</p>
+      <p>Projekt-Übersicht</p>
     </div>
     <div class="header-time" id="uhr"></div>
   </header>
@@ -252,7 +252,7 @@
         <div class="app-name">Deploy App</div>
         <div class="app-desc">Updates deployen · GitHub API</div>
       </div>
-      <span class="app-badge badge-tool">Tool</span>
+      <span class="app-badge badge-version" id="badge-deploy">v–</span>
       <span class="app-arrow">›</span>
     </a>
 
@@ -262,7 +262,7 @@
         <div class="app-name">Import Tool</div>
         <div class="app-desc">Nutzer · Dienste · Einsätze · Lehrgänge</div>
       </div>
-      <span class="app-badge badge-tool">Tool</span>
+      <span class="app-badge badge-version" id="badge-import">v–</span>
       <span class="app-arrow">›</span>
     </a>
   </div>
@@ -293,7 +293,7 @@
   </div>
 
   <footer>
-    ob3s · Beeskow LZ Oegeln · <span id="jahr"></span>
+    ob3s · <span id="jahr"></span>
   </footer>
 
 </div>
@@ -309,13 +309,17 @@
   tick(); setInterval(tick, 1000);
   document.getElementById('jahr').textContent = new Date().getFullYear();
 
-  // Ortswehr-Version live laden
-  fetch('/ortswehr/version.json?t=' + Date.now())
-    .then(r => r.json())
-    .then(d => {
-      if (d.version) document.getElementById('badge-ortswehr').textContent = 'v' + d.version;
-    })
-    .catch(() => {});
+  // Versionen live laden
+  [
+    ['/ortswehr/version.json', 'badge-ortswehr'],
+    ['/fw-deploy/version.json', 'badge-deploy'],
+    ['/fw-import/version.json', 'badge-import'],
+  ].forEach(([url, id]) => {
+    fetch(url + '?t=' + Date.now())
+      .then(r => r.json())
+      .then(d => { if (d.version) document.getElementById(id).textContent = 'v' + d.version; })
+      .catch(() => {});
+  });
 </script>
 </body>
 </html>
