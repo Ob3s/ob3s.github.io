@@ -1,0 +1,1193 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ortswehr Import-Tool</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap');
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --red:    #cc2200;
+    --bg:     #0f1117;
+    --panel:  #1a1d26;
+    --panel2: #20242f;
+    --border: #2e3244;
+    --text:   #e2e8f0;
+    --muted:  #64748b;
+    --green:  #22c55e;
+    --yellow: #f59e0b;
+    --blue:   #3b82f6;
+    --mono:   'JetBrains Mono', monospace;
+    --sans:   'IBM Plex Sans', sans-serif;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    min-height: 100vh;
+  }
+
+  /* ── Header ── */
+  .topbar {
+    background: var(--panel);
+    border-bottom: 1px solid var(--border);
+    padding: 0.75rem 1.5rem;
+    display: flex; align-items: center; gap: 1rem;
+  }
+  .topbar-logo { font-size: 1.4rem; }
+  .topbar-title { font-weight: 600; font-size: 1rem; }
+  .topbar-sub { color: var(--muted); font-size: 0.8rem; margin-left: auto; font-family: var(--mono); }
+  #auth-status { font-size: 0.78rem; padding: 0.25rem 0.7rem; border-radius: 20px; }
+  #auth-status.ok  { background: #14532d; color: var(--green); }
+  #auth-status.err { background: #450a0a; color: #f87171; }
+
+  /* ── Login ── */
+  #login-section {
+    max-width: 380px; margin: 4rem auto; padding: 0 1rem;
+  }
+  .login-card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 2rem;
+  }
+  .login-card h2 { margin-bottom: 1.5rem; font-size: 1.1rem; }
+
+  /* ── Layout ── */
+  #main-section { display: none; }
+  .layout { display: grid; grid-template-columns: 220px 1fr 340px; gap: 0; height: calc(100vh - 53px); }
+
+  /* ── Sidebar ── */
+  .sidebar {
+    background: var(--panel);
+    border-right: 1px solid var(--border);
+    padding: 1rem 0;
+    overflow-y: auto;
+  }
+  .sidebar-section { padding: 0.5rem 1rem 0.25rem; font-size: 0.68rem; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; margin-top: 0.5rem; }
+  .nav-item {
+    display: flex; align-items: center; gap: 0.6rem;
+    padding: 0.6rem 1rem; cursor: pointer;
+    font-size: 0.875rem; color: var(--muted);
+    border-left: 3px solid transparent;
+    transition: all 0.15s;
+  }
+  .nav-item:hover { color: var(--text); background: var(--panel2); }
+  .nav-item.aktiv { color: var(--text); border-left-color: var(--red); background: var(--panel2); }
+  .nav-item .icon { width: 18px; text-align: center; }
+  .nav-badge { margin-left: auto; background: var(--red); color: #fff; font-size: 0.65rem; padding: 0.1rem 0.4rem; border-radius: 10px; font-family: var(--mono); }
+
+  /* ── Content ── */
+  .content { overflow-y: auto; padding: 1.5rem; }
+  .page { display: none; }
+  .page.aktiv { display: block; }
+
+  /* ── Log ── */
+  .log-panel {
+    background: var(--panel);
+    border-left: 1px solid var(--border);
+    display: flex; flex-direction: column;
+  }
+  .log-header {
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid var(--border);
+    font-size: 0.75rem; font-weight: 600;
+    display: flex; align-items: center; gap: 0.5rem;
+    color: var(--muted);
+  }
+  .log-body { flex: 1; overflow-y: auto; padding: 0.5rem; font-family: var(--mono); font-size: 0.72rem; }
+  .log-entry { padding: 0.2rem 0.5rem; border-radius: 4px; margin-bottom: 1px; line-height: 1.5; }
+  .log-entry.info  { color: #94a3b8; }
+  .log-entry.ok    { color: var(--green); }
+  .log-entry.warn  { color: var(--yellow); }
+  .log-entry.error { color: #f87171; }
+  .log-entry.head  { color: var(--blue); font-weight: 600; margin-top: 0.5rem; }
+  .log-clear { margin-left: auto; background: none; border: none; color: var(--muted); cursor: pointer; font-size: 0.75rem; }
+
+  /* ── Cards ── */
+  .card { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 1.25rem; margin-bottom: 1rem; }
+  .card h3 { font-size: 0.9rem; margin-bottom: 0.75rem; display: flex; align-items: center; gap: 0.5rem; }
+  .card-muted { font-size: 0.78rem; color: var(--muted); margin-bottom: 1rem; line-height: 1.5; }
+
+  /* ── Inputs ── */
+  label { display: block; font-size: 0.72rem; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.3rem; }
+  input, textarea, select {
+    width: 100%; background: var(--panel2); border: 1px solid var(--border);
+    border-radius: 6px; padding: 0.6rem 0.8rem;
+    color: var(--text); font-family: var(--sans); font-size: 0.875rem;
+    margin-bottom: 0.75rem;
+  }
+  input:focus, textarea:focus, select:focus { outline: none; border-color: var(--red); }
+  textarea { font-family: var(--mono); font-size: 0.72rem; resize: vertical; }
+  input[type="password"] { letter-spacing: 0.1em; }
+
+  /* ── Buttons ── */
+  .btn {
+    display: inline-flex; align-items: center; gap: 0.4rem;
+    padding: 0.55rem 1.1rem; border-radius: 6px; border: none;
+    cursor: pointer; font-family: var(--sans); font-size: 0.875rem; font-weight: 500;
+    transition: opacity 0.15s;
+  }
+  .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+  .btn-red    { background: var(--red);  color: #fff; }
+  .btn-green  { background: #166534;     color: var(--green); }
+  .btn-blue   { background: #1e3a5f;     color: var(--blue); }
+  .btn-ghost  { background: var(--panel2); color: var(--text); border: 1px solid var(--border); }
+  .btn + .btn { margin-left: 0.5rem; }
+  .btn-row { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-top: 1rem; }
+
+  /* ── Tabellen ── */
+  table { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
+  th { background: var(--panel2); padding: 0.5rem 0.75rem; text-align: left; font-size: 0.7rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 1px solid var(--border); }
+  td { padding: 0.5rem 0.75rem; border-bottom: 1px solid var(--border); vertical-align: top; }
+  tr:hover td { background: var(--panel2); }
+  .pill { display: inline-block; padding: 0.15rem 0.5rem; border-radius: 20px; font-size: 0.68rem; font-weight: 600; }
+  .pill-green  { background: #14532d; color: var(--green); }
+  .pill-yellow { background: #451a03; color: var(--yellow); }
+  .pill-red    { background: #450a0a; color: #f87171; }
+  .pill-blue   { background: #1e3a5f; color: var(--blue); }
+  .pill-gray   { background: var(--panel2); color: var(--muted); }
+
+  /* ── Progress ── */
+  .progress-bar { background: var(--border); border-radius: 4px; height: 6px; margin: 0.5rem 0; overflow: hidden; }
+  .progress-fill { height: 100%; background: var(--red); transition: width 0.3s; border-radius: 4px; }
+
+  /* ── Stats ── */
+  .stats-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.75rem; margin-bottom: 1.25rem; }
+  .stat-box { background: var(--panel2); border: 1px solid var(--border); border-radius: 8px; padding: 0.75rem 1rem; }
+  .stat-val { font-size: 1.6rem; font-weight: 700; font-family: var(--mono); color: var(--text); }
+  .stat-lbl { font-size: 0.7rem; color: var(--muted); margin-top: 0.1rem; }
+
+  /* ── Scrollbar ── */
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+  .empty { text-align: center; padding: 2rem; color: var(--muted); font-size: 0.875rem; }
+  .mono { font-family: var(--mono); }
+  .mt { margin-top: 1rem; }
+
+  #prog-container { display: none; }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <span class="topbar-logo">🚒</span>
+  <span class="topbar-title">Ortswehr Import-Tool</span>
+  <span class="topbar-sub">FFW Beeskow · Löschzug Oegeln</span>
+  <span id="auth-status" class="err">Nicht angemeldet</span>
+</div>
+
+<!-- LOGIN -->
+<div id="login-section">
+  <div class="login-card">
+    <h2>🔐 Anmelden</h2>
+    <p style="font-size:0.82rem;color:var(--muted);margin-bottom:1.25rem">Bitte mit Wehrführer-Account anmelden.</p>
+    <label>E-Mail</label>
+    <input type="email" id="login-email" placeholder="email@example.com">
+    <label>Passwort</label>
+    <input type="password" id="login-pw" placeholder="••••••••">
+    <p id="login-error" style="color:#f87171;font-size:0.8rem;margin-bottom:0.75rem;display:none"></p>
+    <button class="btn btn-red" style="width:100%" onclick="doLogin()">Anmelden</button>
+  </div>
+</div>
+
+<!-- MAIN -->
+<div id="main-section">
+  <div class="layout">
+
+    <!-- Sidebar -->
+    <div class="sidebar">
+      <div class="sidebar-section">Übersicht</div>
+      <div class="nav-item aktiv" onclick="showPage('dashboard')"><span class="icon">📊</span> Dashboard</div>
+
+      <div class="sidebar-section">Nutzer</div>
+      <div class="nav-item" onclick="showPage('users')"><span class="icon">👤</span> Nutzer-Analyse <span class="nav-badge" id="badge-users">–</span></div>
+      <div class="nav-item" onclick="showPage('create-users')"><span class="icon">➕</span> Nutzer erstellen</div>
+
+      <div class="sidebar-section">Import</div>
+      <div class="nav-item" onclick="showPage('import-dienste')"><span class="icon">📅</span> Dienste importieren</div>
+      <div class="nav-item" onclick="showPage('import-einsaetze')"><span class="icon">⚡</span> Einsätze importieren</div>
+      <div class="nav-item" onclick="showPage('zuordnen')"><span class="icon">🔗</span> Teilnehmer zuordnen</div>
+      <div class="nav-item" onclick="showPage('lehrgaenge')"><span class="icon">🎓</span> Lehrgänge &amp; Stammdaten</div>
+
+      <div class="sidebar-section">System</div>
+      <div class="nav-item" onclick="doLogout()"><span class="icon">🚪</span> Abmelden</div>
+    </div>
+
+    <!-- Content -->
+    <div class="content">
+
+      <!-- DASHBOARD -->
+      <div id="page-dashboard" class="page aktiv">
+        <h2 style="margin-bottom:1.25rem;font-size:1.1rem">📊 Übersicht</h2>
+        <div class="stats-row" id="db-stats">
+          <div class="stat-box"><div class="stat-val" id="st-users">–</div><div class="stat-lbl">Nutzer</div></div>
+          <div class="stat-box"><div class="stat-val" id="st-dienste">–</div><div class="stat-lbl">Dienste</div></div>
+          <div class="stat-box"><div class="stat-val" id="st-einsaetze">–</div><div class="stat-lbl">Einsätze</div></div>
+          <div class="stat-box"><div class="stat-val" id="st-anw">–</div><div class="stat-lbl">Anwesenheiten</div></div>
+        </div>
+        <div class="card">
+          <h3>🚀 Workflow</h3>
+          <div class="card-muted">Empfohlene Reihenfolge für den Import:</div>
+          <div style="font-size:0.85rem;line-height:2">
+            <div style="display:flex;gap:0.75rem;align-items:center"><span style="background:var(--red);color:#fff;border-radius:50%;width:22px;height:22px;display:inline-flex;align-items:center;justify-content:center;font-size:0.7rem;font-weight:700;flex-shrink:0">1</span> <strong>Nutzer-Analyse</strong> – Prüfen welche Nutzer fehlen</div>
+            <div style="display:flex;gap:0.75rem;align-items:center;margin-top:0.5rem"><span style="background:var(--red);color:#fff;border-radius:50%;width:22px;height:22px;display:inline-flex;align-items:center;justify-content:center;font-size:0.7rem;font-weight:700;flex-shrink:0">2</span> <strong>Nutzer erstellen</strong> – Fehlende Accounts anlegen</div>
+            <div style="display:flex;gap:0.75rem;align-items:center;margin-top:0.5rem"><span style="background:var(--red);color:#fff;border-radius:50%;width:22px;height:22px;display:inline-flex;align-items:center;justify-content:center;font-size:0.7rem;font-weight:700;flex-shrink:0">3</span> <strong>Dienste/Einsätze importieren</strong> – CSV einfügen und importieren</div>
+            <div style="display:flex;gap:0.75rem;align-items:center;margin-top:0.5rem"><span style="background:var(--red);color:#fff;border-radius:50%;width:22px;height:22px;display:inline-flex;align-items:center;justify-content:center;font-size:0.7rem;font-weight:700;flex-shrink:0">4</span> <strong>Teilnehmer zuordnen</strong> – Anwesenheiten eintragen</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- NUTZER ANALYSE -->
+      <div id="page-users" class="page">
+        <h2 style="margin-bottom:1.25rem;font-size:1.1rem">👤 Nutzer-Analyse</h2>
+        <div class="card">
+          <h3>CSV einfügen um fehlende Nutzer zu finden</h3>
+          <div class="card-muted">Füge deine Dienste- oder Einsatz-CSV ein. Das Tool ermittelt welche Teilnehmer noch keinen Account haben.</div>
+          <label>CSV-Daten (Zeitstempel;Datum;Thema;Dauer;Teilnehmer)</label>
+          <textarea id="csv-analyse" rows="6" placeholder="Zeitstempel;Datum;Thema;Dauer;Teilnehmer&#10;10.01.2024 20:36:24;10.01.2024;Dienst;02:30:00;Kotzan, Adrian, Losansky, Philipp"></textarea>
+          <button class="btn btn-blue" onclick="analyseNutzer()">🔍 Analysieren</button>
+        </div>
+        <div id="analyse-result"></div>
+      </div>
+
+      <!-- NUTZER ERSTELLEN -->
+      <div id="page-create-users" class="page">
+        <h2 style="margin-bottom:1.25rem;font-size:1.1rem">➕ Nutzer erstellen</h2>
+        <div class="card">
+          <h3>Einzeln erstellen</h3>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem">
+            <div><label>Vorname</label><input id="nu-vorname" placeholder="Gevin"></div>
+            <div><label>Nachname</label><input id="nu-nachname" placeholder="Pust"></div>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem">
+            <div><label>Benutzername (auto)</label><input id="nu-user" placeholder="gPust" readonly style="color:var(--muted)"></div>
+            <div><label>Passwort</label><input id="nu-pw" value="123456"></div>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem">
+            <div><label>Dienstgrad</label><input id="nu-grad" placeholder="Feuerwehrmann"></div>
+            <div><label>Rolle</label>
+              <select id="nu-rolle">
+                <option value="kamerad">Kamerad</option>
+                <option value="gruppenführer">Gruppenführer</option>
+                <option value="zugführer">Zugführer</option>
+                <option value="wehrfuehrer">Wehrführer</option>
+              </select>
+            </div>
+          </div>
+          <button class="btn btn-green" onclick="erstelleNutzerEinzel()">➕ Nutzer anlegen</button>
+        </div>
+
+        <div class="card">
+          <h3>Massenerstellung aus CSV-Analyse</h3>
+          <div class="card-muted">Füge die Liste der fehlenden Nutzer ein (Nachname, Vorname – eine Person pro Zeile).</div>
+          <label>Fehlende Nutzer (Nachname, Vorname)</label>
+          <textarea id="nu-masse" rows="8" placeholder="Kotzan, Adrian&#10;Pust, Gevin&#10;Wolf, Luca"></textarea>
+          <div id="prog-container">
+            <div class="progress-bar"><div class="progress-fill" id="prog-fill" style="width:0%"></div></div>
+            <div id="prog-text" style="font-size:0.75rem;color:var(--muted)"></div>
+          </div>
+          <div class="btn-row">
+            <button class="btn btn-ghost" onclick="vorschauMasse()">👁 Vorschau</button>
+            <button class="btn btn-green" onclick="erstelleMasseNutzer()" id="btn-masse">🚀 Alle erstellen</button>
+          </div>
+          <div id="masse-vorschau" style="margin-top:1rem"></div>
+        </div>
+      </div>
+
+      <!-- DIENSTE IMPORT -->
+      <div id="page-import-dienste" class="page">
+        <h2 style="margin-bottom:1.25rem;font-size:1.1rem">📅 Dienste importieren</h2>
+        <div class="card">
+          <h3>CSV einfügen</h3>
+          <div class="card-muted">Format: <span class="mono" style="color:var(--blue)">Zeitstempel;Datum;Thema;Dauer;Teilnehmer</span><br>Dauer: HH:MM:SS · Teilnehmer: Nachname, Vorname, Nachname, Vorname, ...</div>
+          <label>CSV-Daten</label>
+          <textarea id="csv-dienste" rows="10" placeholder="Zeitstempel;Datum;Thema;Dauer;Teilnehmer&#10;10.01.2024 20:36:24;10.01.2024;Umkleide organisieren;02:30:00;Kotzan, Adrian, Pust, Gevin"></textarea>
+          <div class="btn-row">
+            <button class="btn btn-ghost" onclick="vorschauCSV('dienste')">👁 Vorschau</button>
+            <button class="btn btn-red" onclick="importiereCSV('dienste')" id="btn-imp-dienste">📥 Importieren</button>
+          </div>
+        </div>
+        <div id="vorschau-dienste"></div>
+      </div>
+
+      <!-- EINSÄTZE IMPORT -->
+      <div id="page-import-einsaetze" class="page">
+        <h2 style="margin-bottom:1.25rem;font-size:1.1rem">⚡ Einsätze importieren</h2>
+        <div class="card">
+          <h3>CSV einfügen</h3>
+          <div class="card-muted">Format: <span class="mono" style="color:var(--blue)">Zeitstempel;Datum;Thema;Dauer;Teilnehmer</span></div>
+          <label>CSV-Daten</label>
+          <textarea id="csv-einsaetze" rows="10" placeholder="Zeitstempel;Einsatz-Stichwort;Teilnehmer;Zeit der Alarmierung&#10;04.01.2024 11:29:30;H:Oel-Land;Pust, Gevin;04.01.2024 11:20:00"></textarea>
+          <div class="btn-row">
+            <button class="btn btn-ghost" onclick="vorschauCSV('einsaetze')">👁 Vorschau</button>
+            <button class="btn btn-red" onclick="importiereCSV('einsaetze')" id="btn-imp-einsaetze">📥 Importieren</button>
+          </div>
+        </div>
+        <div id="vorschau-einsaetze"></div>
+      </div>
+
+      <!-- TEILNEHMER ZUORDNEN -->
+      <div id="page-zuordnen" class="page">
+        <h2 style="margin-bottom:1.25rem;font-size:1.1rem">🔗 Teilnehmer zuordnen</h2>
+        <div class="card">
+          <h3>CSV einfügen</h3>
+          <div class="card-muted">Dienste oder Einsätze CSV einfügen. Das Tool ordnet die Teilnehmer den vorhandenen Einträgen zu und erstellt Anwesenheiten.</div>
+          <label>Typ</label>
+          <select id="zuord-typ">
+            <option value="dienst">Dienste</option>
+            <option value="einsaetze">Einsätze</option>
+          </select>
+          <label>CSV-Daten</label>
+          <textarea id="csv-zuordnen" rows="10" placeholder="Zeitstempel;Datum;Thema;Dauer;Teilnehmer"></textarea>
+          <div class="btn-row">
+            <button class="btn btn-ghost" onclick="vorschauZuordnen()">👁 Vorschau</button>
+            <button class="btn btn-red" onclick="starteZuordnen()" id="btn-zuordnen">🔗 Zuordnen starten</button>
+          </div>
+          <div id="prog-zuord" style="display:none;margin-top:0.75rem">
+            <div class="progress-bar"><div class="progress-fill" id="prog-zuord-fill" style="width:0%"></div></div>
+            <div id="prog-zuord-text" style="font-size:0.75rem;color:var(--muted)"></div>
+          </div>
+        </div>
+        <div id="vorschau-zuordnen"></div>
+      </div>
+
+      <!-- LEHRGÄNGE IMPORT -->
+      <div id="page-lehrgaenge" class="page">
+        <h2 style="margin-bottom:1.25rem;font-size:1.1rem">🎓 Lehrgänge &amp; Stammdaten importieren</h2>
+        <div class="card">
+          <h3>Personalliste CSV einfügen</h3>
+          <div class="card-muted" style="margin-bottom:0.75rem">
+            Format der Personalliste: <span class="mono" style="color:var(--blue)">Einsatz;Pers.Nr.;Name;Dienstgrad;Geburtstag;Eintritt;TM1;TM2;SF;AGT;TH;AS;MA;TF;GF;WF;ZF;EH;KS;...</span><br>
+            Übernommen werden: <strong>Dienstgrad, Geburtstag</strong> und alle <strong>Lehrgänge</strong> (Ja = vorhanden).
+          </div>
+          <div style="font-size:0.82rem;background:var(--panel2);padding:0.6rem 0.8rem;border-radius:8px;margin-bottom:0.8rem">
+            <strong>Kürzel:</strong> TM2=Truppmann · SF=Sprechfunk · AGT=AGT · TH=TH-Grund · AS=Absturzsicherung · MA=Maschinist · TF=Truppführer · GF=Gruppenführer · WF=Wehrführer · ZF=Zugführer · EH=Erste-Hilfe · KS=Motorsäge A/B
+          </div>
+          <label>CSV-Inhalt (aus Personalliste kopieren)</label>
+          <textarea id="csv-lehrgaenge" rows="12" placeholder="Einsatz,Pers. Nr.,Name,Dienstgrad,Geburtstag,...&#10;Nein,0001,&quot;Gliese, Martin&quot;,OFM,22.11.1989,..."></textarea>
+          <div class="btn-row" style="margin-top:0.75rem">
+            <button class="btn btn-ghost" onclick="vorschauLehrgaenge()">👁 Vorschau</button>
+            <button class="btn btn-red" onclick="importiereLehrgaenge()" id="btn-imp-lehrgaenge">🎓 Importieren</button>
+          </div>
+          <div id="prog-lehrgang" style="display:none;margin-top:0.75rem">
+            <div class="progress-bar"><div class="progress-fill" id="prog-lehrgang-fill" style="width:0%"></div></div>
+            <div id="prog-lehrgang-text" style="font-size:0.75rem;color:var(--muted)"></div>
+          </div>
+        </div>
+        <div id="vorschau-lehrgaenge"></div>
+      </div>
+
+            <!-- ── DB-Fixes ── -->
+      <div class="card" style="border:1px solid #dc2626">
+        <h2 style="margin-bottom:1.25rem;font-size:1.1rem">🔧 Datenbank-Korrekturen</h2>
+        <div style="font-size:0.85rem;color:var(--muted);margin-bottom:1rem">
+          Einmalige Korrekturen für bereits importierte Daten.
+        </div>
+        <div class="card" style="background:var(--panel2)">
+          <strong style="font-size:0.9rem">Anwesenheits-Status: <code>bestaetigt</code> → <code>kommt</code></strong>
+          <div style="font-size:0.82rem;color:var(--muted);margin:0.4rem 0 0.8rem">
+            Ältere Importe haben <code>status: "bestaetigt"</code> gespeichert. Die App erwartet <code>"kommt"</code>.
+            Dieser Fix aktualisiert alle betroffenen Anwesenheiten.
+          </div>
+          <button class="btn btn-red" id="btn-fix-status" onclick="fixAnwesenheitStatus()">
+            🔧 Status korrigieren
+          </button>
+        </div>
+      </div>
+
+    </div><!-- /content -->
+
+    <!-- Log Panel -->
+    <div class="log-panel">
+      <div class="log-header">
+        ⬛ Protokoll
+        <button class="log-clear" onclick="clearLog()">löschen</button>
+      </div>
+      <div class="log-body" id="log-body"></div>
+    </div>
+
+  </div>
+</div>
+
+<script type="module">
+import { initializeApp, getApp } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js';
+import { getAuth, signInWithEmailAndPassword, signOut, createUserWithEmailAndPassword, onAuthStateChanged }
+  from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js';
+import { getFirestore, collection, doc, getDoc, getDocs, addDoc, setDoc, updateDoc, query, where, orderBy, Timestamp, writeBatch }
+  from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js';
+
+const cfg = {
+  apiKey: "AIzaSyDwV6LJUnL660nQnnlQ47QZnBc_bXzIezU",
+  authDomain: "ffw-oegeln-791ca.firebaseapp.com",
+  projectId: "ffw-oegeln-791ca",
+  storageBucket: "ffw-oegeln-791ca.firebasestorage.app",
+  messagingSenderId: "170034438620",
+  appId: "1:170034438620:web:f2e40bf21b6a9b6987ef19"
+};
+
+const app  = initializeApp(cfg);
+const auth = getAuth(app);
+const db   = getFirestore(app);
+
+// ── Globale Refs ──
+window._auth = auth; window._db = db; window._cfg = cfg;
+window._users = []; // Cache
+
+// ── Log ──
+window.log = (msg, type='info') => {
+  const el = document.getElementById('log-body');
+  const d = document.createElement('div');
+  d.className = `log-entry ${type}`;
+  const ts = new Date().toLocaleTimeString('de-DE');
+  d.textContent = `[${ts}] ${msg}`;
+  el.appendChild(d);
+  el.scrollTop = el.scrollHeight;
+};
+window.clearLog = () => document.getElementById('log-body').innerHTML = '';
+
+// ── Navigation ──
+window.showPage = (id) => {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('aktiv'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('aktiv'));
+  document.getElementById('page-'+id)?.classList.add('aktiv');
+  document.querySelectorAll('.nav-item').forEach(n => {
+    if (n.getAttribute('onclick')?.includes(id)) n.classList.add('aktiv');
+  });
+};
+
+// ── Auth ──
+onAuthStateChanged(auth, async (user) => {
+  const st = document.getElementById('auth-status');
+  if (user) {
+    const snap = await getDoc(doc(db, 'users', user.uid));
+    const profil = snap.data();
+    if (profil?.rolle !== 'wehrfuehrer') {
+      st.textContent = '⚠️ Kein Wehrführer';
+      st.className = 'err';
+      log('Angemeldet als ' + user.email + ' – aber kein Wehrführer!', 'warn');
+      return;
+    }
+    st.textContent = '✅ ' + (profil.vorname||user.email);
+    st.className = 'ok';
+    document.getElementById('login-section').style.display = 'none';
+    document.getElementById('main-section').style.display = 'block';
+    log('Angemeldet als ' + profil.vorname + ' ' + profil.nachname, 'ok');
+    ladeStats();
+    await ladeUsers();
+  } else {
+    st.textContent = 'Nicht angemeldet';
+    st.className = 'err';
+    document.getElementById('login-section').style.display = 'block';
+    document.getElementById('main-section').style.display = 'none';
+  }
+});
+
+window.doLogin = async () => {
+  const email = document.getElementById('login-email').value;
+  const pw    = document.getElementById('login-pw').value;
+  const err   = document.getElementById('login-error');
+  err.style.display = 'none';
+  try {
+    await signInWithEmailAndPassword(auth, email, pw);
+  } catch(e) {
+    err.textContent = 'Fehler: ' + e.message;
+    err.style.display = 'block';
+  }
+};
+window.doLogout = () => signOut(auth);
+
+// ── Stats laden ──
+async function ladeStats() {
+  try {
+    const [u, d, e, a] = await Promise.all([
+      getDocs(collection(db, 'users')),
+      getDocs(collection(db, 'dienste')),
+      getDocs(collection(db, 'einsaetze')),
+      getDocs(collection(db, 'anwesenheiten')),
+    ]);
+    document.getElementById('st-users').textContent    = u.size;
+    document.getElementById('st-dienste').textContent  = d.size;
+    document.getElementById('st-einsaetze').textContent = e.size;
+    document.getElementById('st-anw').textContent      = a.size;
+    document.getElementById('badge-users').textContent = u.size;
+    log(`DB: ${u.size} Nutzer, ${d.size} Dienste, ${e.size} Einsätze, ${a.size} Anwesenheiten`, 'ok');
+  } catch(e) { log('Stats-Fehler: '+e.message, 'error'); }
+}
+
+// ── Users cachen ──
+async function ladeUsers() {
+  const snap = await getDocs(collection(db, 'users'));
+  window._users = snap.docs.map(d => ({id:d.id, ...d.data()}));
+  log(`${window._users.length} Nutzer geladen`, 'info');
+  return window._users;
+}
+
+// ── Username generieren ──
+function genUsername(vorname, nachname) {
+  const v = vorname.trim().charAt(0).toLowerCase();
+  const n = nachname.trim().replace(/\s+/g,'');
+  return v + n.charAt(0).toUpperCase() + n.slice(1);
+}
+
+// ── Auto-username beim Tippen ──
+document.getElementById('nu-vorname').addEventListener('input', () => {
+  const v = document.getElementById('nu-vorname').value;
+  const n = document.getElementById('nu-nachname').value;
+  if (v && n) document.getElementById('nu-user').value = genUsername(v, n);
+});
+document.getElementById('nu-nachname').addEventListener('input', () => {
+  const v = document.getElementById('nu-vorname').value;
+  const n = document.getElementById('nu-nachname').value;
+  if (v && n) document.getElementById('nu-user').value = genUsername(v, n);
+});
+
+// ── CSV parsen ──
+// Datum aus "DD.MM.YYYY HH:MM:SS" oder "DD.MM.YYYY" parsen
+function parseDatum(str) {
+  if (!str) return null;
+  const datNur = str.trim().split(' ')[0];
+  const parts = datNur.split('.').map(Number);
+  if (parts.length < 3 || parts.some(isNaN)) return null;
+  let [d, m, y] = parts;
+  if (y < 100) y += 2000;
+  const dt = new Date(y, m-1, d, 12, 0, 0);
+  return isNaN(dt.getTime()) ? null : dt;
+}
+
+// Teilnehmer aus "Nachname, Vorname, Nachname, Vorname" parsen
+function parseTeilnehmer(str) {
+  const teilnehmer = [];
+  const parts = (str||'').split(',').map(p => p.trim()).filter(Boolean);
+  for (let j = 0; j + 1 < parts.length; j += 2) {
+    teilnehmer.push({ nachname: parts[j], vorname: parts[j+1] });
+  }
+  return teilnehmer;
+}
+
+// Standard-CSV: Zeitstempel;Datum;Thema;Dauer;Teilnehmer
+function parseCSV(text) {
+  const lines = text.trim().split('\n').filter(l => l.trim());
+  const rows = [];
+  for (let i = 1; i < lines.length; i++) {
+    const parts = lines[i].split(';');
+    if (parts.length < 4) continue;
+    const zeitstempel = parts[0]?.trim();
+    const datumStr    = parts[1]?.trim();
+    const thema       = parts[2]?.trim();
+    const dauerStr    = parts[3]?.trim();
+    const teilnStr    = parts[4]?.trim() || '';
+
+    const datum = parseDatum(datumStr);
+    if (!datum) { log(`⚠️ Zeile ${i+1} übersprungen – ungültiges Datum: "${datumStr}"`, 'warn'); continue; }
+
+    const dauerParts = dauerStr.split(':').map(Number);
+    const dauer_h = (dauerParts[0]||0) + (dauerParts[1]||0)/60 + (dauerParts[2]||0)/3600;
+
+    rows.push({ zeitstempel, datumStr: datumStr.split(' ')[0], datum, thema, dauer_h, teilnehmer: parseTeilnehmer(teilnStr), dauerStr });
+  }
+  return rows;
+}
+
+// Einsatz-CSV: Zeitstempel;Einsatz-Stichwort;Teilnehmer;Zeit der Alarmierung
+function parseEinsatzCSV(text) {
+  const lines = text.trim().split('\n').filter(l => l.trim());
+  const header = lines[0].toLowerCase();
+  // Format erkennen: hat "stichwort" oder "alarmierung"?
+  const istEinsatzFormat = header.includes('stichwort') || header.includes('alarmierung');
+  if (!istEinsatzFormat) return parseCSV(text);
+
+  const rows = [];
+  for (let i = 1; i < lines.length; i++) {
+    const parts = lines[i].split(';');
+    if (parts.length < 3) continue;
+    const zeitstempelStr = parts[0]?.trim();
+    const thema          = parts[1]?.trim();
+    const teilnStr       = parts[2]?.trim() || '';
+    const alarmStr       = parts[3]?.trim() || zeitstempelStr;
+
+    // Datum + Uhrzeit aus Alarmierungszeit (Spalte 4) oder Zeitstempel (Spalte 1)
+    const quellStr = alarmStr || zeitstempelStr;
+    const datum = parseDatum(quellStr);
+    if (!datum) { log(`⚠️ Zeile ${i+1} übersprungen – ungültiges Datum`, 'warn'); continue; }
+
+    // Uhrzeit extrahieren: "04.01.2024 11:20:00" → "11:20"
+    const zeitTeil = quellStr.includes(' ') ? quellStr.split(' ')[1] : '';
+    const zeitBeginn = zeitTeil ? zeitTeil.slice(0,5) : '';
+
+    const datumStr = datum.toLocaleDateString('de-DE');
+    rows.push({
+      zeitstempel: zeitstempelStr,
+      datumStr, datum, thema,
+      zeitBeginn,
+      dauer_h: 0,
+      dauerStr: zeitBeginn ? ('Alarm: ' + zeitBeginn) : '–',
+      teilnehmer: parseTeilnehmer(teilnStr)
+    });
+  }
+  return rows;
+}
+
+// ── User finden ──
+function findUser(vorname, nachname) {
+  const vl = vorname.toLowerCase().trim();
+  const nl = nachname.toLowerCase().trim();
+  return window._users.find(u =>
+    u.vorname?.toLowerCase() === vl && u.nachname?.toLowerCase() === nl
+  );
+}
+
+// ── NUTZER ANALYSE ──
+window.analyseNutzer = async () => {
+  const text = document.getElementById('csv-analyse').value;
+  if (!text.trim()) { log('Kein CSV eingegeben', 'warn'); return; }
+  log('Starte Analyse...', 'head');
+
+  await ladeUsers();
+  const rows = parseCSV(text);
+  const allePersonen = new Map();
+  for (const r of rows) {
+    for (const t of r.teilnehmer) {
+      const key = t.nachname + ',' + t.vorname;
+      allePersonen.set(key, t);
+    }
+  }
+
+  const fehlend = [], vorhanden = [];
+  for (const [key, p] of allePersonen) {
+    const u = findUser(p.vorname, p.nachname);
+    if (u) vorhanden.push({...p, userId: u.id});
+    else   fehlend.push(p);
+  }
+
+  log(`${allePersonen.size} Personen im CSV: ${vorhanden.length} gefunden, ${fehlend.length} fehlen`, fehlend.length ? 'warn' : 'ok');
+
+  let html = `<div class="card"><h3>Ergebnis</h3>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
+      <div>
+        <div style="font-size:0.75rem;color:var(--green);font-weight:600;margin-bottom:0.5rem">✅ GEFUNDEN (${vorhanden.length})</div>
+        ${vorhanden.map(p => `<div style="font-size:0.78rem;padding:0.2rem 0;border-bottom:1px solid var(--border)">${p.nachname}, ${p.vorname}</div>`).join('')}
+      </div>
+      <div>
+        <div style="font-size:0.75rem;color:#f87171;font-weight:600;margin-bottom:0.5rem">❌ FEHLEN (${fehlend.length})</div>
+        ${fehlend.length ? fehlend.map(p => `<div style="font-size:0.78rem;padding:0.2rem 0;border-bottom:1px solid var(--border)">${p.nachname}, ${p.vorname}</div>`).join('') : '<div style="font-size:0.78rem;color:var(--green)">Alle vorhanden! 🎉</div>'}
+      </div>
+    </div>
+    ${fehlend.length ? `<div class="btn-row"><button class="btn btn-ghost" onclick="copyFehlend(${JSON.stringify(fehlend).replace(/"/g,'&quot;')})">📋 Fehlende kopieren</button></div>` : ''}
+  </div>`;
+  document.getElementById('analyse-result').innerHTML = html;
+};
+
+window.copyFehlend = (fehlend) => {
+  const text = fehlend.map(p => p.nachname + ', ' + p.vorname).join('\n');
+  navigator.clipboard.writeText(text);
+  document.getElementById('nu-masse').value = text;
+  showPage('create-users');
+  log('Fehlende Nutzer in Massenerstellung eingefügt', 'ok');
+};
+
+// ── NUTZER ERSTELLEN (einzeln) ──
+window.erstelleNutzerEinzel = async () => {
+  const vorname   = document.getElementById('nu-vorname').value.trim();
+  const nachname  = document.getElementById('nu-nachname').value.trim();
+  const username  = document.getElementById('nu-user').value.trim();
+  const pw        = document.getElementById('nu-pw').value.trim();
+  const dienstgrad = document.getElementById('nu-grad').value.trim();
+  const rolle     = document.getElementById('nu-rolle').value;
+  if (!vorname || !nachname) { log('Vor- und Nachname erforderlich', 'warn'); return; }
+  await erstelleNutzer(vorname, nachname, pw, dienstgrad, rolle);
+};
+
+async function erstelleNutzer(vorname, nachname, pw='123456', dienstgrad='', rolle='kamerad') {
+  const username = genUsername(vorname, nachname);
+  const email    = username + '@ffw-oegeln.de';
+  log(`Erstelle ${vorname} ${nachname} (${email})...`, 'info');
+  try {
+    // Temp-App für User-Erstellung
+    let tmpApp;
+    try { tmpApp = getApp('tmp'); } catch(e) { tmpApp = initializeApp(_cfg, 'tmp'); }
+    const tmpAuth = getAuth(tmpApp);
+    const cred = await createUserWithEmailAndPassword(tmpAuth, email, pw);
+    await tmpAuth.signOut();
+    await setDoc(doc(db, 'users', cred.user.uid), {
+      vorname, nachname, email, dienstgrad, rolle,
+      aktiv: true, notif_einsatz: true, notif_uebung: true, notif_bestaetigung: true,
+      fuehrerschein: '',
+    });
+    window._users.push({ id: cred.user.uid, vorname, nachname, email, dienstgrad, rolle });
+    log(`✅ ${vorname} ${nachname} erstellt (${email} / ${pw})`, 'ok');
+    document.getElementById('badge-users').textContent = window._users.length;
+    return cred.user.uid;
+  } catch(e) {
+    if (e.code === 'auth/email-already-in-use') {
+      log(`⚠️ ${email} existiert bereits – überspringe`, 'warn');
+    } else {
+      log(`❌ Fehler bei ${vorname} ${nachname}: ${e.message}`, 'error');
+    }
+    return null;
+  }
+}
+
+// ── NUTZER MASSENERSTELLEN ──
+window.vorschauMasse = () => {
+  const text = document.getElementById('nu-masse').value;
+  const zeilen = text.trim().split('\n').filter(l => l.trim());
+  if (!zeilen.length) return;
+  const personen = zeilen.map(z => {
+    const [nachname, vorname] = z.split(',').map(s => s.trim());
+    return {vorname, nachname, username: genUsername(vorname||'', nachname||''), email: genUsername(vorname||'', nachname||'') + '@ffw-oegeln.de'};
+  }).filter(p => p.vorname && p.nachname);
+
+  document.getElementById('masse-vorschau').innerHTML = `
+    <table><thead><tr><th>Nachname</th><th>Vorname</th><th>Login</th><th>Passwort</th></tr></thead>
+    <tbody>${personen.map(p => `<tr><td>${p.nachname}</td><td>${p.vorname}</td><td class="mono">${p.email}</td><td class="mono">123456</td></tr>`).join('')}</tbody></table>`;
+  log(`${personen.length} Nutzer in Vorschau`, 'info');
+};
+
+window.erstelleMasseNutzer = async () => {
+  const text = document.getElementById('nu-masse').value;
+  const zeilen = text.trim().split('\n').filter(l => l.trim());
+  const personen = zeilen.map(z => {
+    const [nachname, vorname] = z.split(',').map(s => s.trim());
+    return {vorname, nachname};
+  }).filter(p => p.vorname && p.nachname);
+
+  if (!personen.length) { log('Keine Personen gefunden', 'warn'); return; }
+  document.getElementById('btn-masse').disabled = true;
+  document.getElementById('prog-container').style.display = 'block';
+  log(`Starte Massenerstellung: ${personen.length} Nutzer`, 'head');
+
+  for (let i = 0; i < personen.length; i++) {
+    const p = personen[i];
+    await erstelleNutzer(p.vorname, p.nachname);
+    const pct = Math.round((i+1)/personen.length*100);
+    document.getElementById('prog-fill').style.width = pct + '%';
+    document.getElementById('prog-text').textContent = `${i+1} / ${personen.length} (${pct}%)`;
+  }
+
+  document.getElementById('btn-masse').disabled = false;
+  log(`Massenerstellung abgeschlossen`, 'ok');
+  ladeStats();
+};
+
+// ── CSV VORSCHAU ──
+window.vorschauCSV = (typ) => {
+  const text = document.getElementById('csv-'+typ).value;
+  if (!text.trim()) { log('Kein CSV eingegeben', 'warn'); return; }
+  const rows = typ === 'einsaetze' ? parseEinsatzCSV(text) : parseCSV(text);
+  log(`Vorschau: ${rows.length} Einträge geparst`, 'info');
+
+  const istEinsatz = typ === 'einsaetze' && (rows[0]?.zeitBeginn !== undefined);
+  const html = `<div class="card"><h3>Vorschau (${rows.length} Einträge)</h3>
+    <table><thead><tr><th>Datum</th><th>Thema</th>${istEinsatz ? '<th>Startzeit</th>' : '<th>Dauer</th>'}<th>Teilnehmer</th></tr></thead>
+    <tbody>${rows.map(r => `<tr>
+      <td class="mono">${r.datumStr}</td>
+      <td>${r.thema}</td>
+      <td class="mono">${istEinsatz ? (r.zeitBeginn || '–') : r.dauerStr}</td>
+      <td style="font-size:0.72rem">${r.teilnehmer.map(t => t.nachname+', '+t.vorname).join(' · ')}</td>
+    </tr>`).join('')}</tbody></table></div>`;
+  document.getElementById('vorschau-'+typ).innerHTML = html;
+};
+
+// ── CSV IMPORTIEREN (nur Dienste/Einsätze, ohne Teilnehmer) ──
+window.importiereCSV = async (typ) => {
+  const text = document.getElementById('csv-'+typ).value;
+  if (!text.trim()) { log('Kein CSV eingegeben', 'warn'); return; }
+  const rows = typ === 'einsaetze' ? parseEinsatzCSV(text) : parseCSV(text);
+  const col = typ === 'dienste' ? 'dienste' : 'einsaetze';
+  const typLabel = typ === 'dienste' ? 'dienst' : 'einsatz';
+
+  log(`Importiere ${rows.length} ${typ}...`, 'head');
+  document.getElementById('btn-imp-'+typ).disabled = true;
+
+  // Vorhandene laden für Duplikat-Check
+  const vorhandeneSnap = await getDocs(collection(db, col));
+  const vorhandene = new Set(vorhandeneSnap.docs.map(d => {
+    const dat = d.data().datum?.toDate?.()?.toISOString().slice(0,10) || '';
+    return d.data().titel + '_' + dat;
+  }));
+
+  let neu = 0, skip = 0;
+  for (const r of rows) {
+    const key = r.thema + '_' + r.datum.toISOString().slice(0,10);
+    if (vorhandene.has(key)) {
+      log(`Überspringe (Duplikat): ${r.thema} am ${r.datumStr}`, 'warn');
+      skip++;
+      continue;
+    }
+    await addDoc(collection(db, col), {
+      titel: r.thema, datum: Timestamp.fromDate(r.datum),
+      dauer_h: Math.round(r.dauer_h * 100) / 100,
+      typ: typLabel, ort: 'Oegeln', beschreibung: '',
+      zeitBeginn: r.zeitBeginn || '', zeitEnde: '',
+      erstelltAm: Timestamp.now(),
+    });
+    log(`✅ ${r.thema} (${r.datumStr}, ${r.dauerStr})`, 'ok');
+    neu++;
+  }
+
+  log(`Import fertig: ${neu} neu, ${skip} übersprungen`, 'ok');
+  document.getElementById('btn-imp-'+typ).disabled = false;
+  ladeStats();
+};
+
+// ── TEILNEHMER ZUORDNEN – Vorschau ──
+window.vorschauZuordnen = async () => {
+  const typ  = document.getElementById('zuord-typ').value;
+  const text = document.getElementById('csv-zuordnen').value;
+  if (!text.trim()) { log('Kein CSV eingegeben', 'warn'); return; }
+
+  await ladeUsers();
+  const rows = typ === 'einsaetze' ? parseEinsatzCSV(text) : parseCSV(text);
+  const col = typ === 'dienste' ? 'dienste' : 'einsaetze';
+
+  // Einträge laden
+  const colSnap = await getDocs(collection(db, col));
+  const eintraege = colSnap.docs.map(d => ({id:d.id,...d.data()}));
+
+  let html = `<div class="card"><h3>Zuordnungs-Vorschau (${rows.length} Zeilen)</h3><table>
+    <thead><tr><th>Datum</th><th>Thema</th><th>Eintrag gefunden</th><th>Teilnehmer</th></tr></thead><tbody>`;
+
+  for (const r of rows) {
+    const eintrag = findEintrag(eintraege, r);
+    const teilStatus = r.teilnehmer.map(t => {
+      const u = findUser(t.vorname, t.nachname);
+      return `<span class="pill ${u?'pill-green':'pill-red'}" style="margin:1px">${t.nachname}, ${t.vorname}</span>`;
+    }).join(' ');
+    html += `<tr>
+      <td class="mono">${r.datumStr}</td>
+      <td>${r.thema}</td>
+      <td>${eintrag ? `<span class="pill pill-green">✅ ${eintrag.titel}</span>` : '<span class="pill pill-red">❌ nicht gefunden</span>'}</td>
+      <td style="font-size:0.72rem">${teilStatus}</td>
+    </tr>`;
+  }
+  html += '</tbody></table></div>';
+  document.getElementById('vorschau-zuordnen').innerHTML = html;
+  log(`Vorschau: ${rows.length} Zeilen`, 'info');
+};
+
+function findEintrag(eintraege, row) {
+  const rd = row.datum.toISOString().slice(0,10);
+  // Zuerst Datum+Thema, dann nur Datum
+  return eintraege.find(e => {
+    const ed = e.datum?.toDate?.()?.toISOString().slice(0,10) || '';
+    return ed === rd && e.titel?.toLowerCase().includes(row.thema.toLowerCase().slice(0,10));
+  }) || eintraege.find(e => {
+    const ed = e.datum?.toDate?.()?.toISOString().slice(0,10) || '';
+    return ed === rd;
+  });
+}
+
+// ── DB-FIX: bestaetigt → kommt ──
+window.fixAnwesenheitStatus = async () => {
+  const btn = document.getElementById('btn-fix-status');
+  btn.disabled = true;
+  btn.textContent = '⏳ Lädt...';
+  log('Suche Anwesenheiten mit status=bestaetigt...', 'head');
+
+  try {
+    const snap = await getDocs(query(collection(db, 'anwesenheiten'), where('status', '==', 'bestaetigt')));
+    if (snap.empty) {
+      log('Keine Einträge mit status=bestaetigt gefunden – nichts zu tun ✅', 'ok');
+      btn.disabled = false;
+      btn.textContent = '✅ Nichts zu tun';
+      return;
+    }
+
+    log(`${snap.docs.length} Einträge gefunden – starte Korrektur...`, 'info');
+
+    // Batch-Update (max 500 pro Batch)
+    let batch = writeBatch(db);
+    let count = 0, total = 0;
+    for (const d of snap.docs) {
+      batch.update(d.ref, { status: 'kommt' });
+      count++;
+      total++;
+      if (count === 499) {
+        await batch.commit();
+        batch = writeBatch(db);
+        count = 0;
+      }
+    }
+    if (count > 0) await batch.commit();
+
+    log(`✅ ${total} Anwesenheiten korrigiert (bestaetigt → kommt)`, 'ok');
+    btn.textContent = `✅ ${total} korrigiert`;
+  } catch(e) {
+    log('Fehler: ' + e.message, 'error');
+    btn.disabled = false;
+    btn.textContent = '🔧 Status korrigieren';
+  }
+};
+
+// ── TEILNEHMER ZUORDNEN – Ausführen ──
+window.starteZuordnen = async () => {
+  const text = document.getElementById('csv-zuordnen').value;
+  const typ  = document.getElementById('zuord-typ').value;
+  if (!text.trim()) { log('Kein CSV eingegeben', 'warn'); return; }
+
+  await ladeUsers();
+  const rows = typ === 'einsaetze' ? parseEinsatzCSV(text) : parseCSV(text);
+  const col  = typ === 'dienste' ? 'dienste' : 'einsaetze';
+  const colSnap = await getDocs(collection(db, col));
+  const eintraege = colSnap.docs.map(d => ({id:d.id,...d.data()}));
+
+  // Vorhandene Anwesenheiten laden
+  const anwSnap = await getDocs(collection(db, 'anwesenheiten'));
+  const vorhandenesAnw = new Set(anwSnap.docs.map(d => d.data().uebungId + '_' + d.data().userId));
+
+  log(`Starte Zuordnung für ${rows.length} Einträge...`, 'head');
+  document.getElementById('btn-zuordnen').disabled = true;
+  document.getElementById('prog-zuord').style.display = 'block';
+
+  let gesamt = 0, skip = 0, fehler = 0;
+
+  for (let i = 0; i < rows.length; i++) {
+    const r = rows[i];
+    const eintrag = findEintrag(eintraege, r);
+    if (!eintrag) {
+      log(`❌ Kein Eintrag für: ${r.thema} am ${r.datumStr}`, 'warn');
+      fehler++;
+    } else {
+      for (const t of r.teilnehmer) {
+        const user = findUser(t.vorname, t.nachname);
+        if (!user) {
+          log(`⚠️ User nicht gefunden: ${t.nachname}, ${t.vorname}`, 'warn');
+          fehler++;
+          continue;
+        }
+        const anwKey = eintrag.id + '_' + user.id;
+        if (vorhandenesAnw.has(anwKey)) {
+          skip++;
+          continue;
+        }
+        await addDoc(collection(db, 'anwesenheiten'), {
+          uebungId: eintrag.id,
+          userId:   user.id,
+          userName: user.nachname + ', ' + user.vorname.charAt(0) + '.',
+          typ, status: 'kommt',
+          datum: eintrag.datum,
+          dauer_h: eintrag.dauer_h || r.dauer_h,
+          gemeldetAm: Timestamp.now(),
+          bestaetigtAm: Timestamp.now(),
+        });
+        vorhandenesAnw.add(anwKey);
+        gesamt++;
+      }
+    }
+    const pct = Math.round((i+1)/rows.length*100);
+    document.getElementById('prog-zuord-fill').style.width = pct + '%';
+    document.getElementById('prog-zuord-text').textContent = `${i+1} / ${rows.length} Zeilen verarbeitet`;
+  }
+
+  log(`Zuordnung fertig: ${gesamt} Anwesenheiten erstellt, ${skip} Duplikate, ${fehler} Fehler`, gesamt > 0 ? 'ok' : 'warn');
+  document.getElementById('btn-zuordnen').disabled = false;
+  ladeStats();
+};
+
+// ── Lehrgangs-Import ──────────────────────────────────────
+
+const DIENSTGRAD_MAP = {
+  'FM':  'Feuermann',
+  'OFM': 'Oberfeuermann',
+  'HFM': 'Hauptfeuermann',
+  'LM':  'Löschmeister',
+  'OLM': 'Oberlöschmeister',
+  'HLM': 'Hauptlöschmeister',
+  'BM':  'Brandmeister',
+  'OBM': 'Oberbrandmeister',
+  'HBM': 'Hauptbrandmeister',
+  'SM':  'Stadtbrandmeister',
+  'KBI': 'Kreisbrandinspektor',
+  'KBM': 'Kreisbrandmeister',
+};
+
+const LEHRGANG_MAP = {
+  'TM 2': 'Truppmann',
+  'TM2':  'Truppmann',
+  'SF':   'Sprechfunk',
+  'AGT':  'AGT',
+  'TH':   'TH-Grund',
+  'AS':   'Absturzsicherung',
+  'MA':   'Maschinist',
+  'TF':   'Truppführer',
+  'GF':   'Gruppenführer',
+  'WF':   'Wehrführer',
+  'ZF':   'Zugführer',
+  'EH':   'Erste-Hilfe',
+  'KS':   'Motorsäge A/B',
+};
+
+function parsePersonalliste(text) {
+  // CSV parsen (komma- oder semikolongetrennt, mit Anführungszeichen)
+  const lines = text.trim().split(/\r?\n/).filter(l => l.trim());
+  // Header-Zeile finden: erste Zeile die "Name" und "Dienstgrad" enthält
+  let headerIdx = -1;
+  for (let i = 0; i < Math.min(lines.length, 6); i++) {
+    if (lines[i].toLowerCase().includes('name') && lines[i].toLowerCase().includes('dienstgrad')) {
+      headerIdx = i; break;
+    }
+  }
+  if (headerIdx < 0) { log('⚠️ Header nicht gefunden – prüfe Format', 'warn'); return []; }
+
+  // Trennzeichen erkennen
+  const sep = lines[headerIdx].includes(';') ? ';' : ',';
+
+  // Einfacher CSV-Parser mit Anführungszeichen-Support
+  function parseRow(line) {
+    const result = [];
+    let cur = '', inQ = false;
+    for (let i = 0; i < line.length; i++) {
+      const ch = line[i];
+      if (ch === '"') { inQ = !inQ; }
+      else if (ch === sep && !inQ) { result.push(cur.trim()); cur = ''; }
+      else { cur += ch; }
+    }
+    result.push(cur.trim());
+    return result;
+  }
+
+  const headers = parseRow(lines[headerIdx]).map(h => h.trim());
+
+  // Spalten-Indizes ermitteln
+  const iName       = headers.findIndex(h => h.toLowerCase() === 'name');
+  const iDienstgrad = headers.findIndex(h => h.toLowerCase() === 'dienstgrad');
+  const iGeburtstag = headers.findIndex(h => h.toLowerCase() === 'geburtstag');
+
+  // Lehrgangs-Spalten: alle Kürzel die in LEHRGANG_MAP sind
+  const lehrgangSpalten = [];
+  headers.forEach((h, idx) => {
+    const key = h.trim();
+    if (LEHRGANG_MAP[key]) lehrgangSpalten.push({ idx, kuerzel: key, name: LEHRGANG_MAP[key] });
+  });
+
+  const result = [];
+  for (let i = headerIdx + 1; i < lines.length; i++) {
+    const cols = parseRow(lines[i]);
+    const name = cols[iName]?.trim();
+    if (!name) continue;
+
+    // Name: "Nachname, Vorname" → trennen
+    const nameParts = name.split(',').map(s => s.trim());
+    const nachname = nameParts[0] || '';
+    const vorname  = nameParts[1] || '';
+
+    const dienstgrad  = iDienstgrad >= 0 ? (cols[iDienstgrad]?.trim() || '') : '';
+    const geburtstag  = iGeburtstag >= 0 ? (cols[iGeburtstag]?.trim() || '') : '';
+
+    // Lehrgänge
+    const lehrgaenge = [];
+    for (const { idx, name: lName } of lehrgangSpalten) {
+      const val = cols[idx]?.trim().toLowerCase();
+      if (val === 'ja' || val === 'yes' || val === '1' || val === 'true') {
+        lehrgaenge.push(lName);
+      }
+    }
+
+    result.push({ nachname, vorname, dienstgrad, geburtstag, lehrgaenge });
+  }
+  return result;
+}
+
+window.vorschauLehrgaenge = () => {
+  const text = document.getElementById('csv-lehrgaenge').value;
+  if (!text.trim()) { log('Kein CSV eingefügt', 'warn'); return; }
+  const rows = parsePersonalliste(text);
+  if (!rows.length) { document.getElementById('vorschau-lehrgaenge').innerHTML = '<div class="card">Keine Zeilen erkannt</div>'; return; }
+
+  const html = `<div class="card">
+    <h3>Vorschau – ${rows.length} Personen</h3>
+    <table style="width:100%;border-collapse:collapse;font-size:0.82rem">
+      <tr style="color:var(--muted);border-bottom:1px solid var(--border)">
+        <th style="text-align:left;padding:0.3rem 0.5rem">Name</th>
+        <th style="text-align:left;padding:0.3rem 0.5rem">Dienstgrad</th>
+        <th style="text-align:left;padding:0.3rem 0.5rem">Geburtstag</th>
+        <th style="text-align:left;padding:0.3rem 0.5rem">Lehrgänge</th>
+      </tr>
+      ${rows.map(r => `<tr style="border-bottom:1px solid var(--border)">
+        <td style="padding:0.3rem 0.5rem">${r.nachname}, ${r.vorname}</td>
+        <td style="padding:0.3rem 0.5rem">${(DIENSTGRAD_MAP[r.dienstgrad] || r.dienstgrad) || '–'}</td>
+        <td style="padding:0.3rem 0.5rem">${r.geburtstag || '–'}</td>
+        <td style="padding:0.3rem 0.5rem">${r.lehrgaenge.length ? r.lehrgaenge.join(', ') : '–'}</td>
+      </tr>`).join('')}
+    </table>
+  </div>`;
+  document.getElementById('vorschau-lehrgaenge').innerHTML = html;
+};
+
+window.importiereLehrgaenge = async () => {
+  const text = document.getElementById('csv-lehrgaenge').value;
+  if (!text.trim()) { log('Kein CSV eingefügt', 'warn'); return; }
+  const rows = parsePersonalliste(text);
+  if (!rows.length) { log('Keine Zeilen erkannt', 'warn'); return; }
+
+  document.getElementById('btn-imp-lehrgaenge').disabled = true;
+  document.getElementById('prog-lehrgang').style.display = 'block';
+
+  // Alle User laden
+  const usersSnap = await getDocs(collection(db, 'users'));
+  const users = usersSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+
+  let gUpdated = 0, gLehrgaenge = 0, gSkip = 0, gNichtGef = 0;
+
+  for (let i = 0; i < rows.length; i++) {
+    const r = rows[i];
+    const pct = Math.round((i+1)/rows.length*100);
+    document.getElementById('prog-lehrgang-fill').style.width = pct + '%';
+    document.getElementById('prog-lehrgang-text').textContent = `${i+1}/${rows.length}: ${r.nachname}, ${r.vorname}`;
+
+    // User suchen (Nachname + Vorname, case-insensitive)
+    const user = users.find(u =>
+      (u.nachname||'').toLowerCase() === r.nachname.toLowerCase() &&
+      (!r.vorname || (u.vorname||'').toLowerCase().startsWith(r.vorname.toLowerCase().charAt(0)))
+    );
+    if (!user) {
+      log(`⚠️ Nicht gefunden: ${r.nachname}, ${r.vorname}`, 'warn');
+      gNichtGef++;
+      continue;
+    }
+
+    // Stammdaten updaten (Dienstgrad, Geburtstag)
+    const update = {};
+    const dgVoll = DIENSTGRAD_MAP[r.dienstgrad] || r.dienstgrad;
+    if (dgVoll && dgVoll !== user.dienstgrad) update.dienstgrad = dgVoll;
+    if (r.geburtstag) update.geburtstag = r.geburtstag;
+    if (Object.keys(update).length) {
+      await updateDoc(doc(db, 'users', user.id), update);
+      gUpdated++;
+    }
+
+    // Bestehende Qualifikationen laden
+    const qSnap = await getDocs(collection(db, 'users', user.id, 'qualifikationen'));
+    const vorhandene = new Set(qSnap.docs.map(d => (d.data().bezeichnung||d.data().titel||d.data().name||'').toLowerCase()));
+
+    // Neue Lehrgänge hinzufügen
+    for (const lName of r.lehrgaenge) {
+      if (!vorhandene.has(lName.toLowerCase())) {
+        await addDoc(collection(db, 'users', user.id, 'qualifikationen'), {
+          bezeichnung: lName, erworbenAm: null, erstelltAm: Timestamp.now(),
+        });
+        gLehrgaenge++;
+        vorhandene.add(lName.toLowerCase());
+      }
+    }
+    if (!Object.keys(update).length && r.lehrgaenge.every(l => vorhandene.has(l.toLowerCase()) || r.lehrgaenge.indexOf(l) >= 0)) {
+      // noop
+    }
+  }
+
+  log(`✅ Fertig: ${gUpdated} Stammdaten aktualisiert, ${gLehrgaenge} Lehrgänge importiert, ${gNichtGef} nicht gefunden`, gNichtGef === 0 ? 'ok' : 'warn');
+  document.getElementById('btn-imp-lehrgaenge').disabled = false;
+  ladeStats();
+};
+
+
+</script>
+</body>
+</html>
