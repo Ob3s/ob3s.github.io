@@ -1,0 +1,738 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>3D Print Manager</title>
+  <link rel="manifest" href="manifest.json" />
+  <meta name="theme-color" content="#f97316" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Print3D" />
+  <link rel="apple-touch-icon" href="icon-192.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Courier+Prime:wght@400;700&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,400&display=swap" rel="stylesheet" />
+
+  <style>
+    /* ── TOKENS ──────────────────────────────── */
+    :root {
+      --bg:       #0c0c0c;
+      --surface:  #161616;
+      --border:   #2a2a2a;
+      --text:     #e8e4de;
+      --muted:    #666;
+      --accent:   #f97316;
+      --accent2:  #fb923c;
+      --green:    #22c55e;
+      --blue:     #3b82f6;
+      --yellow:   #eab308;
+      --danger:   #ef4444;
+      --mono:     'Courier Prime', monospace;
+      --sans:     'DM Sans', sans-serif;
+      --r:        6px;
+    }
+
+    /* ── RESET ───────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; background: var(--bg); color: var(--text); font-family: var(--sans); }
+    button { cursor: pointer; font-family: inherit; }
+    a { color: inherit; }
+    input, textarea, select { font-family: inherit; }
+
+    /* ── LAYOUT ──────────────────────────────── */
+    #app { display: flex; flex-direction: column; height: 100dvh; max-width: 640px; margin: 0 auto; position: relative; }
+
+    /* ── SETUP SCREEN ────────────────────────── */
+    #setup-screen {
+      display: none; flex-direction: column; align-items: center; justify-content: center;
+      height: 100dvh; padding: 2rem; gap: 1.5rem; background: var(--bg);
+    }
+    #setup-screen.active { display: flex; }
+    .setup-logo { font-family: var(--mono); font-size: 2rem; font-weight: 700; color: var(--accent); letter-spacing: -1px; }
+    .setup-logo span { color: var(--text); }
+    .setup-title { font-size: 1.1rem; font-weight: 600; text-align: center; }
+    .setup-sub { font-size: 0.85rem; color: var(--muted); text-align: center; line-height: 1.6; }
+    .setup-form { width: 100%; display: flex; flex-direction: column; gap: 0.75rem; }
+    .setup-form label { font-size: 0.75rem; color: var(--muted); font-family: var(--mono); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.2rem; display: block; }
+    .setup-form input {
+      width: 100%; padding: 0.7rem 0.9rem; background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--r); color: var(--text); font-size: 0.85rem; font-family: var(--mono);
+      transition: border-color 0.2s;
+    }
+    .setup-form input:focus { outline: none; border-color: var(--accent); }
+    .setup-form input::placeholder { color: #444; }
+    .btn-setup {
+      width: 100%; padding: 0.85rem; background: var(--accent); color: #000; font-weight: 600;
+      border: none; border-radius: var(--r); font-size: 0.95rem; margin-top: 0.5rem;
+      transition: background 0.2s, transform 0.1s;
+    }
+    .btn-setup:active { transform: scale(0.98); }
+    .setup-hint { font-size: 0.75rem; color: var(--muted); text-align: center; line-height: 1.6; }
+    .setup-hint a { color: var(--accent); text-decoration: none; }
+    .setup-err { color: var(--danger); font-size: 0.8rem; text-align: center; display: none; }
+    .setup-err.show { display: block; }
+
+    /* ── HEADER ──────────────────────────────── */
+    header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 1rem 1.25rem 0.75rem;
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+    .logo { font-family: var(--mono); font-weight: 700; font-size: 1.1rem; color: var(--accent); }
+    .logo span { color: var(--text); }
+    .header-right { display: flex; align-items: center; gap: 0.5rem; }
+    .offline-badge {
+      font-size: 0.65rem; font-family: var(--mono); padding: 0.2rem 0.5rem;
+      background: #1a1a1a; border: 1px solid var(--border); border-radius: 99px;
+      color: var(--muted); display: flex; align-items: center; gap: 0.3rem;
+    }
+    .offline-badge .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--green); }
+    .offline-badge.offline .dot { background: var(--yellow); }
+    .btn-icon {
+      width: 36px; height: 36px; display: flex; align-items: center; justify-content: center;
+      background: var(--surface); border: 1px solid var(--border); border-radius: var(--r);
+      color: var(--text); font-size: 1.1rem; transition: border-color 0.2s, color 0.2s;
+    }
+    .btn-icon:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* ── FILTER TABS ──────────────────────────── */
+    .filter-bar {
+      display: flex; padding: 0.75rem 1.25rem; gap: 0.5rem; flex-shrink: 0;
+      overflow-x: auto; scrollbar-width: none;
+    }
+    .filter-bar::-webkit-scrollbar { display: none; }
+    .tab {
+      padding: 0.35rem 0.9rem; border-radius: 99px; border: 1px solid var(--border);
+      background: transparent; color: var(--muted); font-size: 0.8rem; font-weight: 500;
+      white-space: nowrap; transition: all 0.18s; display: flex; align-items: center; gap: 0.4rem;
+    }
+    .tab .count { font-family: var(--mono); font-size: 0.7rem; opacity: 0.7; }
+    .tab.active { background: var(--accent); border-color: var(--accent); color: #000; font-weight: 600; }
+    .tab.active .count { opacity: 0.8; }
+
+    /* ── JOB LIST ────────────────────────────── */
+    #job-list {
+      flex: 1; overflow-y: auto; padding: 0.5rem 1.25rem 1rem;
+      display: flex; flex-direction: column; gap: 0.75rem;
+      scrollbar-width: thin; scrollbar-color: var(--border) transparent;
+    }
+
+    .empty-state {
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      gap: 0.75rem; height: 100%; color: var(--muted); text-align: center;
+    }
+    .empty-icon { font-size: 3rem; opacity: 0.3; }
+    .empty-state p { font-size: 0.9rem; }
+
+    /* ── JOB CARD ────────────────────────────── */
+    .job-card {
+      background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
+      padding: 1rem; display: flex; flex-direction: column; gap: 0.6rem;
+      cursor: pointer; transition: border-color 0.2s, transform 0.15s;
+      animation: slideIn 0.25s ease both;
+    }
+    .job-card:active { transform: scale(0.99); }
+    .job-card:hover { border-color: #3a3a3a; }
+    .job-card.status-laufend { border-left: 3px solid var(--blue); }
+    .job-card.status-fertig  { border-left: 3px solid var(--green); opacity: 0.7; }
+    .job-card.status-offen   { border-left: 3px solid var(--yellow); }
+
+    @keyframes slideIn {
+      from { opacity: 0; transform: translateY(8px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .card-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 0.5rem; }
+    .card-title { font-weight: 600; font-size: 0.95rem; flex: 1; line-height: 1.3; }
+    .status-badge {
+      font-size: 0.65rem; font-family: var(--mono); padding: 0.2rem 0.55rem;
+      border-radius: 99px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em;
+      flex-shrink: 0;
+    }
+    .status-offen   { background: rgba(234,179,8,0.15);   color: var(--yellow); }
+    .status-laufend { background: rgba(59,130,246,0.15);  color: var(--blue); }
+    .status-fertig  { background: rgba(34,197,94,0.15);   color: var(--green); }
+
+    .card-meta { display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap; }
+    .meta-item { display: flex; align-items: center; gap: 0.3rem; font-size: 0.75rem; color: var(--muted); }
+    .meta-item svg { flex-shrink: 0; }
+    .meta-link { color: var(--accent); text-decoration: none; font-family: var(--mono); font-size: 0.72rem; }
+    .meta-link:hover { text-decoration: underline; }
+
+    .card-notes { font-size: 0.8rem; color: var(--muted); line-height: 1.5; font-style: italic; }
+
+    /* ── FAB ─────────────────────────────────── */
+    #fab {
+      position: fixed; bottom: 1.5rem; right: 1.5rem;
+      width: 56px; height: 56px; border-radius: 50%; border: none;
+      background: var(--accent); color: #000; font-size: 1.6rem; font-weight: 300;
+      display: flex; align-items: center; justify-content: center;
+      box-shadow: 0 4px 24px rgba(249,115,22,0.4);
+      transition: transform 0.2s, box-shadow 0.2s;
+      z-index: 50;
+    }
+    #fab:active { transform: scale(0.92); }
+    #fab:hover  { box-shadow: 0 6px 32px rgba(249,115,22,0.6); }
+
+    /* ── MODAL ───────────────────────────────── */
+    .modal-backdrop {
+      position: fixed; inset: 0; background: rgba(0,0,0,0.7); backdrop-filter: blur(4px);
+      z-index: 100; display: flex; align-items: flex-end; justify-content: center;
+      opacity: 0; pointer-events: none; transition: opacity 0.2s;
+    }
+    .modal-backdrop.open { opacity: 1; pointer-events: all; }
+    .modal {
+      background: var(--surface); border: 1px solid var(--border); border-radius: 16px 16px 0 0;
+      width: 100%; max-width: 640px; padding: 1.5rem;
+      transform: translateY(100%); transition: transform 0.3s cubic-bezier(0.34,1.56,0.64,1);
+      max-height: 90dvh; overflow-y: auto;
+    }
+    .modal-backdrop.open .modal { transform: translateY(0); }
+    .modal-handle { width: 40px; height: 4px; border-radius: 99px; background: var(--border); margin: 0 auto 1.25rem; }
+    .modal-title { font-family: var(--mono); font-size: 1rem; font-weight: 700; margin-bottom: 1.25rem; color: var(--accent); }
+
+    /* ── FORM ────────────────────────────────── */
+    .form-group { display: flex; flex-direction: column; gap: 0.4rem; margin-bottom: 1rem; }
+    .form-label { font-size: 0.72rem; color: var(--muted); font-family: var(--mono); text-transform: uppercase; letter-spacing: 0.05em; }
+    .form-input, .form-select, .form-textarea {
+      width: 100%; padding: 0.7rem 0.9rem; background: var(--bg); border: 1px solid var(--border);
+      border-radius: var(--r); color: var(--text); font-size: 0.9rem;
+      transition: border-color 0.2s;
+    }
+    .form-input:focus, .form-select:focus, .form-textarea:focus {
+      outline: none; border-color: var(--accent);
+    }
+    .form-select { appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23666' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 0.75rem center; }
+    .form-textarea { resize: vertical; min-height: 80px; }
+    .form-textarea::placeholder, .form-input::placeholder { color: #444; }
+
+    .status-selector { display: flex; gap: 0.5rem; }
+    .status-opt {
+      flex: 1; padding: 0.55rem; text-align: center; border: 1px solid var(--border);
+      border-radius: var(--r); font-size: 0.78rem; font-weight: 500; background: transparent;
+      color: var(--muted); transition: all 0.15s;
+    }
+    .status-opt[data-val="offen"].selected   { background: rgba(234,179,8,0.15);  border-color: var(--yellow); color: var(--yellow); }
+    .status-opt[data-val="laufend"].selected { background: rgba(59,130,246,0.15); border-color: var(--blue);   color: var(--blue); }
+    .status-opt[data-val="fertig"].selected  { background: rgba(34,197,94,0.15);  border-color: var(--green);  color: var(--green); }
+
+    .form-actions { display: flex; gap: 0.75rem; margin-top: 1.25rem; }
+    .btn-primary {
+      flex: 1; padding: 0.8rem; background: var(--accent); color: #000;
+      font-weight: 600; border: none; border-radius: var(--r); font-size: 0.9rem;
+      transition: background 0.2s, transform 0.1s;
+    }
+    .btn-primary:active { transform: scale(0.98); }
+    .btn-secondary {
+      padding: 0.8rem 1rem; background: transparent; color: var(--muted);
+      border: 1px solid var(--border); border-radius: var(--r); font-size: 0.9rem;
+      transition: all 0.2s;
+    }
+    .btn-secondary:hover { border-color: var(--text); color: var(--text); }
+    .btn-danger {
+      padding: 0.8rem; background: transparent; color: var(--danger);
+      border: 1px solid rgba(239,68,68,0.3); border-radius: var(--r); font-size: 0.9rem;
+      transition: all 0.2s;
+    }
+    .btn-danger:hover { background: rgba(239,68,68,0.1); }
+
+    .url-hint { font-size: 0.72rem; color: var(--muted); margin-top: 0.3rem; }
+    .url-hint span { color: var(--accent); font-family: var(--mono); }
+
+    /* ── LOADING ─────────────────────────────── */
+    .spinner {
+      width: 20px; height: 20px; border: 2px solid var(--border);
+      border-top-color: var(--accent); border-radius: 50%;
+      animation: spin 0.7s linear infinite; margin: 2rem auto;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── TOAST ───────────────────────────────── */
+    #toast {
+      position: fixed; bottom: 5rem; left: 50%; transform: translateX(-50%) translateY(20px);
+      background: var(--surface); border: 1px solid var(--border); border-radius: 99px;
+      padding: 0.55rem 1.1rem; font-size: 0.82rem; color: var(--text);
+      opacity: 0; transition: all 0.25s; z-index: 200; white-space: nowrap;
+      pointer-events: none;
+    }
+    #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+    /* ── DETAIL MODAL ────────────────────────── */
+    .detail-status-row { display: flex; gap: 0.5rem; margin-bottom: 1rem; }
+    .detail-field { margin-bottom: 1rem; }
+    .detail-field-label { font-size: 0.72rem; color: var(--muted); font-family: var(--mono); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.4rem; }
+    .detail-field-val { font-size: 0.9rem; line-height: 1.5; }
+    .detail-link { color: var(--accent); text-decoration: none; word-break: break-all; font-family: var(--mono); font-size: 0.82rem; }
+    .detail-link:hover { text-decoration: underline; }
+    .makerworld-preview {
+      background: var(--bg); border: 1px solid var(--border); border-radius: var(--r);
+      padding: 0.75rem; display: flex; align-items: center; gap: 0.75rem; margin-top: 0.5rem;
+    }
+    .mw-icon { width: 32px; height: 32px; background: #1a1a1a; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 1.1rem; flex-shrink: 0; }
+    .mw-info { flex: 1; min-width: 0; }
+    .mw-id { font-family: var(--mono); font-size: 0.75rem; color: var(--muted); }
+    .mw-open { font-size: 0.78rem; color: var(--accent); text-decoration: none; }
+    .mw-open:hover { text-decoration: underline; }
+
+    /* ── SEARCH ──────────────────────────────── */
+    .search-wrap { padding: 0 1.25rem 0.5rem; flex-shrink: 0; }
+    .search-input {
+      width: 100%; padding: 0.6rem 0.9rem 0.6rem 2.3rem; background: var(--surface);
+      border: 1px solid var(--border); border-radius: var(--r); color: var(--text);
+      font-size: 0.88rem; transition: border-color 0.2s;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%23666' stroke-width='2'%3E%3Ccircle cx='11' cy='11' r='8'/%3E%3Cpath d='m21 21-4.35-4.35'/%3E%3C/svg%3E");
+      background-repeat: no-repeat; background-position: 0.75rem center;
+    }
+    .search-input:focus { outline: none; border-color: var(--accent); }
+    .search-input::placeholder { color: #444; }
+  </style>
+</head>
+<body>
+
+<!-- ══ SETUP SCREEN ═══════════════════════════════ -->
+<div id="setup-screen">
+  <div class="setup-logo">⬡ Print<span>3D</span></div>
+  <div class="setup-title">Firebase einrichten</div>
+  <p class="setup-sub">Trage deine Firebase-Projektdaten ein.<br>Sie werden lokal gespeichert.</p>
+  <div class="setup-form">
+    <div>
+      <label>API Key</label>
+      <input id="cfg-apiKey" type="text" placeholder="AIzaSy..." autocomplete="off" />
+    </div>
+    <div>
+      <label>Auth Domain</label>
+      <input id="cfg-authDomain" type="text" placeholder="dein-projekt.firebaseapp.com" />
+    </div>
+    <div>
+      <label>Project ID</label>
+      <input id="cfg-projectId" type="text" placeholder="dein-projekt-id" />
+    </div>
+    <div>
+      <label>App ID</label>
+      <input id="cfg-appId" type="text" placeholder="1:123456:web:abc..." />
+    </div>
+    <button class="btn-setup" onclick="saveConfig()">Verbinden →</button>
+    <div class="setup-err" id="setup-err">Verbindung fehlgeschlagen. Bitte Daten prüfen.</div>
+  </div>
+  <p class="setup-hint">
+    Neu? <a href="https://console.firebase.google.com/" target="_blank">Firebase Console öffnen</a> →
+    Projekt erstellen → Firestore aktivieren → Web-App hinzufügen
+  </p>
+</div>
+
+<!-- ══ MAIN APP ════════════════════════════════════ -->
+<div id="app" style="display:none">
+  <header>
+    <div class="logo">⬡ Print<span>3D</span></div>
+    <div class="header-right">
+      <div class="offline-badge" id="online-badge">
+        <div class="dot"></div>
+        <span id="online-label">Online</span>
+      </div>
+      <button class="btn-icon" onclick="openSettings()" title="Einstellungen">⚙</button>
+    </div>
+  </header>
+
+  <div class="search-wrap">
+    <input class="search-input" id="search-input" type="search" placeholder="Auftrag suchen…" oninput="renderJobs()" />
+  </div>
+
+  <div class="filter-bar">
+    <button class="tab active" data-filter="alle"   onclick="setFilter(this)">Alle    <span class="count" id="cnt-alle">0</span></button>
+    <button class="tab"        data-filter="offen"  onclick="setFilter(this)">Offen   <span class="count" id="cnt-offen">0</span></button>
+    <button class="tab"        data-filter="laufend"onclick="setFilter(this)">Laufend <span class="count" id="cnt-laufend">0</span></button>
+    <button class="tab"        data-filter="fertig" onclick="setFilter(this)">Fertig  <span class="count" id="cnt-fertig">0</span></button>
+  </div>
+
+  <div id="job-list"><div class="spinner"></div></div>
+
+  <button id="fab" onclick="openCreate()">+</button>
+</div>
+
+<!-- ══ CREATE / EDIT MODAL ════════════════════════ -->
+<div class="modal-backdrop" id="form-backdrop" onclick="closeForm(event)">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title" id="form-title">// NEUER AUFTRAG</div>
+
+    <div class="form-group">
+      <label class="form-label">Bezeichnung *</label>
+      <input class="form-input" id="f-name" type="text" placeholder="z.B. Halterung Wohnzimmer" />
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">Makerworld-Link oder ID</label>
+      <input class="form-input" id="f-mw" type="text" placeholder="https://makerworld.com/… oder 123456" oninput="parseMwInput()" />
+      <div class="url-hint" id="mw-hint"></div>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">Status</label>
+      <div class="status-selector">
+        <button class="status-opt selected" data-val="offen"   onclick="selectStatus(this)">Offen</button>
+        <button class="status-opt"          data-val="laufend" onclick="selectStatus(this)">Laufend</button>
+        <button class="status-opt"          data-val="fertig"  onclick="selectStatus(this)">Fertig</button>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">Notizen</label>
+      <textarea class="form-textarea" id="f-notes" placeholder="Material, Farbe, Infill…"></textarea>
+    </div>
+
+    <div class="form-actions">
+      <button class="btn-secondary" onclick="closeModal('form-backdrop')">Abbrechen</button>
+      <button class="btn-primary"   onclick="saveJob()">Speichern</button>
+    </div>
+    <div style="margin-top:0.75rem; display:flex; justify-content:center">
+      <button class="btn-danger" id="btn-delete" onclick="deleteJob()" style="display:none; width:100%">Auftrag löschen</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ DETAIL MODAL ════════════════════════════════ -->
+<div class="modal-backdrop" id="detail-backdrop" onclick="closeDetail(event)">
+  <div class="modal" id="detail-content"></div>
+</div>
+
+<!-- ══ TOAST ═══════════════════════════════════════ -->
+<div id="toast"></div>
+
+<!-- ══ FIREBASE SDK ════════════════════════════════ -->
+<script type="module">
+import { initializeApp }              from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
+import { getFirestore, collection, addDoc, updateDoc, deleteDoc, doc,
+         onSnapshot, enableIndexedDbPersistence, serverTimestamp }
+  from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
+
+// ── CONFIG ─────────────────────────────────────────
+const CFG_KEY = 'print3d_firebase_cfg';
+
+function loadConfig() {
+  try { return JSON.parse(localStorage.getItem(CFG_KEY)); } catch { return null; }
+}
+function saveConfigToStorage(cfg) {
+  localStorage.setItem(CFG_KEY, JSON.stringify(cfg));
+}
+
+// ── GLOBAL STATE ───────────────────────────────────
+let db, unsubscribe;
+let jobs = [];
+let currentFilter = 'alle';
+let editingId = null;
+
+// Expose to window for inline handlers
+window._state = { jobs };
+
+// ── INIT ───────────────────────────────────────────
+async function init() {
+  const cfg = loadConfig();
+  if (!cfg) {
+    document.getElementById('setup-screen').classList.add('active');
+    return;
+  }
+  await startApp(cfg);
+}
+
+async function startApp(cfg) {
+  try {
+    const app = initializeApp(cfg, cfg.projectId || 'print3d');
+    db = getFirestore(app);
+    await enableIndexedDbPersistence(db).catch(() => {});
+
+    document.getElementById('setup-screen').classList.remove('active');
+    document.getElementById('app').style.display = 'flex';
+
+    listenJobs();
+    setupOnline();
+    registerSW();
+  } catch (e) {
+    console.error(e);
+    document.getElementById('setup-err').classList.add('show');
+  }
+}
+
+function listenJobs() {
+  if (unsubscribe) unsubscribe();
+  const col = collection(db, 'print_jobs');
+  unsubscribe = onSnapshot(col, snap => {
+    jobs = snap.docs.map(d => ({ id: d.id, ...d.data() }))
+                    .sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
+    window._state.jobs = jobs;
+    renderJobs();
+  }, err => {
+    // Offline – render from cache
+    renderJobs();
+  });
+}
+
+// ── RENDER ─────────────────────────────────────────
+function getFiltered() {
+  const q = document.getElementById('search-input')?.value?.toLowerCase() || '';
+  return jobs.filter(j => {
+    const matchFilter = currentFilter === 'alle' || j.status === currentFilter;
+    const matchSearch = !q || j.name?.toLowerCase().includes(q) || j.notes?.toLowerCase().includes(q) || j.mwId?.includes(q);
+    return matchFilter && matchSearch;
+  });
+}
+
+window.renderJobs = function() {
+  const list = document.getElementById('job-list');
+  if (!list) return;
+
+  const counts = { alle: jobs.length, offen: 0, laufend: 0, fertig: 0 };
+  jobs.forEach(j => { if (counts[j.status] !== undefined) counts[j.status]++; });
+  Object.keys(counts).forEach(k => {
+    const el = document.getElementById('cnt-' + k);
+    if (el) el.textContent = counts[k];
+  });
+
+  const filtered = getFiltered();
+  if (!filtered.length) {
+    list.innerHTML = `<div class="empty-state"><div class="empty-icon">⬡</div><p>${jobs.length ? 'Keine Aufträge gefunden.' : 'Noch keine Aufträge.<br>Tippe auf + um zu starten.'}</p></div>`;
+    return;
+  }
+
+  list.innerHTML = filtered.map(j => {
+    const mwHtml = j.mwId
+      ? `<span class="meta-item"><a class="meta-link" href="https://makerworld.com/en/models/${j.mwId}" target="_blank" onclick="event.stopPropagation()">MakerWorld #${j.mwId}</a></span>`
+      : '';
+    const date = j.createdAt?.seconds
+      ? `<span class="meta-item">${new Date(j.createdAt.seconds*1000).toLocaleDateString('de-DE',{day:'2-digit',month:'2-digit',year:'2-digit'})}</span>`
+      : '';
+    const notes = j.notes ? `<div class="card-notes">${escHtml(j.notes)}</div>` : '';
+    return `
+      <div class="job-card status-${j.status}" onclick="openDetail('${j.id}')">
+        <div class="card-top">
+          <div class="card-title">${escHtml(j.name)}</div>
+          <div class="status-badge status-${j.status}">${j.status}</div>
+        </div>
+        <div class="card-meta">${mwHtml}${date}</div>
+        ${notes}
+      </div>`;
+  }).join('');
+};
+
+// ── FILTER ─────────────────────────────────────────
+window.setFilter = function(btn) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  btn.classList.add('active');
+  currentFilter = btn.dataset.filter;
+  renderJobs();
+};
+
+// ── FORM ───────────────────────────────────────────
+window.openCreate = function() {
+  editingId = null;
+  document.getElementById('form-title').textContent = '// NEUER AUFTRAG';
+  document.getElementById('f-name').value = '';
+  document.getElementById('f-mw').value = '';
+  document.getElementById('f-notes').value = '';
+  document.getElementById('mw-hint').textContent = '';
+  document.getElementById('btn-delete').style.display = 'none';
+  document.querySelectorAll('.status-opt').forEach(b => b.classList.remove('selected'));
+  document.querySelector('.status-opt[data-val="offen"]').classList.add('selected');
+  openModal('form-backdrop');
+};
+
+window.openEdit = function(id) {
+  const j = jobs.find(x => x.id === id);
+  if (!j) return;
+  editingId = id;
+  document.getElementById('form-title').textContent = '// AUFTRAG BEARBEITEN';
+  document.getElementById('f-name').value  = j.name || '';
+  document.getElementById('f-mw').value   = j.mwId  ? `https://makerworld.com/en/models/${j.mwId}` : '';
+  document.getElementById('f-notes').value = j.notes || '';
+  document.getElementById('btn-delete').style.display = 'block';
+  document.querySelectorAll('.status-opt').forEach(b => {
+    b.classList.toggle('selected', b.dataset.val === j.status);
+  });
+  parseMwInput();
+  closeModal('detail-backdrop');
+  openModal('form-backdrop');
+};
+
+window.selectStatus = function(btn) {
+  document.querySelectorAll('.status-opt').forEach(b => b.classList.remove('selected'));
+  btn.classList.add('selected');
+};
+
+window.parseMwInput = function() {
+  const raw = document.getElementById('f-mw').value.trim();
+  const hint = document.getElementById('mw-hint');
+  if (!raw) { hint.textContent = ''; return; }
+  const match = raw.match(/(\d{5,})/);
+  if (match) {
+    hint.innerHTML = `ID erkannt: <span>${match[1]}</span>`;
+  } else {
+    hint.textContent = 'Keine gültige Makerworld-URL oder ID erkannt.';
+  }
+};
+
+window.saveJob = async function() {
+  const name  = document.getElementById('f-name').value.trim();
+  const mwRaw = document.getElementById('f-mw').value.trim();
+  const notes = document.getElementById('f-notes').value.trim();
+  const status = document.querySelector('.status-opt.selected')?.dataset.val || 'offen';
+
+  if (!name) { document.getElementById('f-name').focus(); return; }
+
+  const mwMatch = mwRaw.match(/(\d{5,})/);
+  const mwId = mwMatch ? mwMatch[1] : '';
+
+  const data = { name, mwId, notes, status };
+  try {
+    if (editingId) {
+      await updateDoc(doc(db, 'print_jobs', editingId), data);
+      toast('Auftrag aktualisiert ✓');
+    } else {
+      data.createdAt = serverTimestamp();
+      await addDoc(collection(db, 'print_jobs'), data);
+      toast('Auftrag erstellt ✓');
+    }
+    closeModal('form-backdrop');
+  } catch (e) {
+    toast('Fehler: ' + e.message);
+  }
+};
+
+window.deleteJob = async function() {
+  if (!editingId) return;
+  if (!confirm('Auftrag wirklich löschen?')) return;
+  try {
+    await deleteDoc(doc(db, 'print_jobs', editingId));
+    toast('Auftrag gelöscht');
+    closeModal('form-backdrop');
+  } catch (e) {
+    toast('Fehler: ' + e.message);
+  }
+};
+
+// ── DETAIL ─────────────────────────────────────────
+window.openDetail = function(id) {
+  const j = jobs.find(x => x.id === id);
+  if (!j) return;
+  const mwSection = j.mwId ? `
+    <div class="detail-field">
+      <div class="detail-field-label">Makerworld</div>
+      <div class="makerworld-preview">
+        <div class="mw-icon">🖨️</div>
+        <div class="mw-info">
+          <div class="mw-id">ID: ${j.mwId}</div>
+          <a class="mw-open" href="https://makerworld.com/en/models/${j.mwId}" target="_blank">In Makerworld öffnen ↗</a>
+        </div>
+      </div>
+    </div>` : '';
+  const notesSection = j.notes ? `
+    <div class="detail-field">
+      <div class="detail-field-label">Notizen</div>
+      <div class="detail-field-val">${escHtml(j.notes)}</div>
+    </div>` : '';
+  const date = j.createdAt?.seconds
+    ? new Date(j.createdAt.seconds*1000).toLocaleDateString('de-DE',{day:'2-digit',month:'2-digit',year:'numeric'})
+    : '—';
+
+  document.getElementById('detail-content').innerHTML = `
+    <div class="modal-handle"></div>
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:0.5rem;margin-bottom:1rem">
+      <div style="font-weight:600;font-size:1.05rem;flex:1">${escHtml(j.name)}</div>
+      <div class="status-badge status-${j.status}">${j.status}</div>
+    </div>
+    ${mwSection}
+    ${notesSection}
+    <div class="detail-field">
+      <div class="detail-field-label">Erstellt am</div>
+      <div class="detail-field-val" style="font-family:var(--mono);font-size:0.82rem;color:var(--muted)">${date}</div>
+    </div>
+    <div class="form-actions" style="margin-top:1.25rem">
+      <button class="btn-secondary" onclick="closeModal('detail-backdrop')">Schließen</button>
+      <button class="btn-primary"   onclick="openEdit('${j.id}')">Bearbeiten</button>
+    </div>
+  `;
+  openModal('detail-backdrop');
+};
+
+window.closeDetail = function(e) {
+  if (e.target === document.getElementById('detail-backdrop')) closeModal('detail-backdrop');
+};
+
+// ── MODAL HELPERS ──────────────────────────────────
+window.openModal = function(id) {
+  document.getElementById(id).classList.add('open');
+};
+window.closeModal = function(id) {
+  document.getElementById(id).classList.remove('open');
+};
+window.closeForm = function(e) {
+  if (e.target === document.getElementById('form-backdrop')) closeModal('form-backdrop');
+};
+
+// ── TOAST ──────────────────────────────────────────
+window.toast = function(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2200);
+};
+
+// ── ONLINE STATUS ──────────────────────────────────
+function setupOnline() {
+  function update() {
+    const badge = document.getElementById('online-badge');
+    const label = document.getElementById('online-label');
+    if (navigator.onLine) {
+      badge.classList.remove('offline'); label.textContent = 'Online';
+    } else {
+      badge.classList.add('offline'); label.textContent = 'Offline';
+    }
+  }
+  window.addEventListener('online',  update);
+  window.addEventListener('offline', update);
+  update();
+}
+
+// ── SERVICE WORKER ─────────────────────────────────
+function registerSW() {
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/sw.js').catch(() => {});
+  }
+}
+
+// ── SETTINGS (reset config) ────────────────────────
+window.openSettings = function() {
+  if (confirm('Firebase-Konfiguration zurücksetzen und neu einrichten?')) {
+    if (unsubscribe) unsubscribe();
+    localStorage.removeItem(CFG_KEY);
+    location.reload();
+  }
+};
+
+// ── SETUP SCREEN ───────────────────────────────────
+window.saveConfig = async function() {
+  const cfg = {
+    apiKey:       document.getElementById('cfg-apiKey').value.trim(),
+    authDomain:   document.getElementById('cfg-authDomain').value.trim(),
+    projectId:    document.getElementById('cfg-projectId').value.trim(),
+    appId:        document.getElementById('cfg-appId').value.trim(),
+  };
+  if (!cfg.apiKey || !cfg.projectId) { alert('Bitte API Key und Project ID ausfüllen.'); return; }
+  saveConfigToStorage(cfg);
+  document.getElementById('setup-err').classList.remove('show');
+  await startApp(cfg).catch(() => {
+    document.getElementById('setup-err').classList.add('show');
+    localStorage.removeItem(CFG_KEY);
+  });
+};
+
+// ── UTILS ──────────────────────────────────────────
+function escHtml(s) {
+  return (s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ── START ──────────────────────────────────────────
+init();
+</script>
+</body>
+</html>
