@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#0f1117">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>ob3s · Übersicht</title>
+<link rel="manifest" href="/manifest.json">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Syne:wght@400;600;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:       #0b0d14;
+    --panel:    #13161f;
+    --panel2:   #1a1e2a;
+    --border:   rgba(255,255,255,0.07);
+    --red:      #e63329;
+    --red2:     #ff4f44;
+    --muted:    #6b7280;
+    --text:     #e8eaf0;
+    --mono:     'JetBrains Mono', monospace;
+    --sans:     'Syne', sans-serif;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    min-height: 100dvh;
+    overflow-x: hidden;
+  }
+
+  /* Animated grid background */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(230,51,41,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(230,51,41,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* Red glow top-left */
+  body::after {
+    content: '';
+    position: fixed;
+    top: -150px; left: -150px;
+    width: 500px; height: 500px;
+    background: radial-gradient(circle, rgba(230,51,41,0.12) 0%, transparent 70%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .wrap {
+    position: relative;
+    z-index: 1;
+    max-width: 680px;
+    margin: 0 auto;
+    padding: 0 1.2rem 3rem;
+  }
+
+  /* ── Header ── */
+  header {
+    padding: 2rem 0 1.5rem;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 2rem;
+  }
+
+  .logo {
+    width: 44px; height: 44px;
+    background: var(--red);
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.4rem;
+    flex-shrink: 0;
+    box-shadow: 0 0 20px rgba(230,51,41,0.4);
+  }
+
+  .header-text h1 {
+    font-family: var(--mono);
+    font-size: 1.1rem;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+  }
+  .header-text h1 span { color: var(--red2); }
+
+  .header-text p {
+    font-family: var(--mono);
+    font-size: 0.7rem;
+    color: var(--muted);
+    margin-top: 0.1rem;
+  }
+
+  .header-time {
+    margin-left: auto;
+    font-family: var(--mono);
+    font-size: 0.75rem;
+    color: var(--muted);
+    text-align: right;
+  }
+
+  /* ── Section ── */
+  .section-label {
+    font-family: var(--mono);
+    font-size: 0.65rem;
+    color: var(--red);
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    margin-bottom: 0.75rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  .section-label::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+
+  .section { margin-bottom: 2rem; }
+
+  /* ── App Card ── */
+  .app-card {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1rem 1.1rem;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    margin-bottom: 0.6rem;
+    text-decoration: none;
+    color: var(--text);
+    transition: background 0.15s, border-color 0.15s, transform 0.1s;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .app-card:active { transform: scale(0.98); }
+  .app-card:hover  { background: var(--panel2); border-color: rgba(255,255,255,0.12); }
+
+  .app-icon {
+    width: 42px; height: 42px;
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.3rem;
+    flex-shrink: 0;
+  }
+
+  .app-icon.red    { background: rgba(230,51,41,0.15); }
+  .app-icon.blue   { background: rgba(59,130,246,0.15); }
+  .app-icon.green  { background: rgba(34,197,94,0.15); }
+  .app-icon.orange { background: rgba(249,115,22,0.15); }
+  .app-icon.purple { background: rgba(168,85,247,0.15); }
+  .app-icon.gray   { background: rgba(156,163,175,0.15); }
+
+  .app-info { flex: 1; min-width: 0; }
+  .app-name {
+    font-size: 0.95rem;
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .app-desc {
+    font-family: var(--mono);
+    font-size: 0.7rem;
+    color: var(--muted);
+    margin-top: 0.15rem;
+  }
+
+  .app-badge {
+    font-family: var(--mono);
+    font-size: 0.65rem;
+    padding: 0.2rem 0.5rem;
+    border-radius: 20px;
+    flex-shrink: 0;
+  }
+  .badge-version { background: rgba(255,255,255,0.06); color: var(--muted); }
+  .badge-ext     { background: rgba(59,130,246,0.1);   color: #60a5fa; }
+  .badge-tool    { background: rgba(34,197,94,0.1);    color: #4ade80; }
+
+  .app-arrow {
+    color: var(--muted);
+    font-size: 0.8rem;
+    flex-shrink: 0;
+    margin-left: 0.2rem;
+  }
+
+  /* ── Footer ── */
+  footer {
+    margin-top: 2.5rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--border);
+    text-align: center;
+    font-family: var(--mono);
+    font-size: 0.68rem;
+    color: var(--muted);
+  }
+
+  /* ── Animations ── */
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(10px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  .section { animation: fadeUp 0.4s ease both; }
+  .section:nth-child(1) { animation-delay: 0.05s; }
+  .section:nth-child(2) { animation-delay: 0.15s; }
+  .section:nth-child(3) { animation-delay: 0.25s; }
+  .section:nth-child(4) { animation-delay: 0.35s; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div class="logo">🚒</div>
+    <div class="header-text">
+      <h1>ob3s<span>.</span>github<span>.</span>io</h1>
+      <p>Projekt-Übersicht · Beeskow LZ Oegeln</p>
+    </div>
+    <div class="header-time" id="uhr"></div>
+  </header>
+
+  <!-- FEUERWEHR -->
+  <div class="section">
+    <div class="section-label">🚒 Feuerwehr</div>
+
+    <a class="app-card" href="/ortswehr/">
+      <div class="app-icon red">🚒</div>
+      <div class="app-info">
+        <div class="app-name">Ortswehr App</div>
+        <div class="app-desc">Einsätze · Dienste · Kameraden · Statistik</div>
+      </div>
+      <span class="app-badge badge-version" id="badge-ortswehr">v–</span>
+      <span class="app-arrow">›</span>
+    </a>
+
+    <a class="app-card" href="/fw-deploy/">
+      <div class="app-icon orange">📦</div>
+      <div class="app-info">
+        <div class="app-name">Deploy App</div>
+        <div class="app-desc">Updates deployen · GitHub API</div>
+      </div>
+      <span class="app-badge badge-tool">Tool</span>
+      <span class="app-arrow">›</span>
+    </a>
+
+    <a class="app-card" href="/fw-import/">
+      <div class="app-icon green">📥</div>
+      <div class="app-info">
+        <div class="app-name">Import Tool</div>
+        <div class="app-desc">Nutzer · Dienste · Einsätze · Lehrgänge</div>
+      </div>
+      <span class="app-badge badge-tool">Tool</span>
+      <span class="app-arrow">›</span>
+    </a>
+  </div>
+
+  <!-- INFRASTRUKTUR -->
+  <div class="section">
+    <div class="section-label">☁️ Infrastruktur</div>
+
+    <a class="app-card" href="https://github.com/ob3s" target="_blank">
+      <div class="app-icon gray">🐙</div>
+      <div class="app-info">
+        <div class="app-name">GitHub · ob3s</div>
+        <div class="app-desc">Repositories · Commits · Code</div>
+      </div>
+      <span class="app-badge badge-ext">↗</span>
+      <span class="app-arrow">›</span>
+    </a>
+
+    <a class="app-card" href="https://console.firebase.google.com/u/0/project/ffw-oegeln-791ca/overview" target="_blank">
+      <div class="app-icon orange">🔥</div>
+      <div class="app-info">
+        <div class="app-name">Firebase Console</div>
+        <div class="app-desc">Firestore · Auth · Functions · Hosting</div>
+      </div>
+      <span class="app-badge badge-ext">↗</span>
+      <span class="app-arrow">›</span>
+    </a>
+  </div>
+
+  <footer>
+    ob3s · Beeskow LZ Oegeln · <span id="jahr"></span>
+  </footer>
+
+</div>
+
+<script>
+  // Uhr
+  function tick() {
+    const n = new Date();
+    document.getElementById('uhr').innerHTML =
+      n.toLocaleDateString('de-DE',{weekday:'short',day:'2-digit',month:'2-digit'}) + '<br>' +
+      n.toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+  }
+  tick(); setInterval(tick, 1000);
+  document.getElementById('jahr').textContent = new Date().getFullYear();
+
+  // Ortswehr-Version live laden
+  fetch('/ortswehr/version.json?t=' + Date.now())
+    .then(r => r.json())
+    .then(d => {
+      if (d.version) document.getElementById('badge-ortswehr').textContent = 'v' + d.version;
+    })
+    .catch(() => {});
+</script>
+</body>
+</html>
