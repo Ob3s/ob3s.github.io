@@ -226,9 +226,12 @@
 <div id="app">
   <header>
     <div class="logo">⬡ Print<span>3D</span></div>
-    <div class="net-badge" id="net-badge">
-      <div class="dot"></div>
-      <span id="net-label">Online</span>
+    <div style="display:flex;align-items:center;gap:0.5rem">
+      <div style="font-family:var(--mono);font-size:0.65rem;color:var(--muted);background:var(--surface);border:1px solid var(--border);border-radius:99px;padding:0.2rem 0.55rem" id="ver-badge"></div>
+      <div class="net-badge" id="net-badge">
+        <div class="dot"></div>
+        <span id="net-label">Online</span>
+      </div>
     </div>
   </header>
 
@@ -588,6 +591,12 @@ function toast(msg) {
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => t.classList.remove('show'), 2400);
 }
+
+// ── VERSION ──────────────────────────────────────
+fetch('/print3d/version.json?t=' + Date.now())
+  .then(r => r.json())
+  .then(d => { if (d.version) document.getElementById('ver-badge').textContent = 'v' + d.version; })
+  .catch(() => {});
 
 // ── ONLINE ────────────────────────────────────────
 function updateNet() {
