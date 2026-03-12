@@ -112,10 +112,34 @@
     .badge.s-laufend { background: rgba(59,130,246,.15); color: var(--blue); }
     .badge.s-fertig  { background: rgba(34,197,94,.15);  color: var(--green); }
 
+    .card-body  { display: flex; gap: 0.75rem; align-items: flex-start; }
+    .card-body-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 0.45rem; }
+    .card-thumb {
+      width: 72px; height: 72px; border-radius: 8px; object-fit: cover; flex-shrink: 0;
+      background: var(--border); border: 1px solid var(--border);
+    }
+    .card-thumb-ph {
+      width: 72px; height: 72px; border-radius: 8px; flex-shrink: 0;
+      background: #1e1e1e; border: 1px dashed var(--border);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.4rem; opacity: 0.4;
+    }
     .card-meta { display: flex; align-items: center; gap: 0.65rem; flex-wrap: wrap; }
     .meta-mw   { font-family: var(--mono); font-size: 0.72rem; color: var(--accent); }
     .meta-date { font-size: 0.72rem; color: var(--muted); }
     .card-notes { font-size: 0.79rem; color: var(--muted); font-style: italic; line-height: 1.5; }
+
+    /* detail thumbnail */
+    .detail-thumb {
+      width: 100%; aspect-ratio: 16/9; object-fit: cover; border-radius: 10px;
+      margin-bottom: 1rem; border: 1px solid var(--border); background: #1e1e1e;
+    }
+    .thumb-loading {
+      width: 100%; aspect-ratio: 16/9; border-radius: 10px; margin-bottom: 1rem;
+      background: linear-gradient(90deg,#1e1e1e 25%,#252525 50%,#1e1e1e 75%);
+      background-size: 200% 100%; animation: shimmer 1.4s infinite;
+    }
+    @keyframes shimmer { to { background-position: -200% 0; } }
 
     #fab {
       position: fixed; bottom: 1.5rem; right: calc(50% - 320px + 1.5rem);
@@ -357,13 +381,21 @@ function render() {
       ? `<span class="meta-date">${new Date(j.createdAt.seconds*1000)
           .toLocaleDateString('de-DE',{day:'2-digit',month:'2-digit',year:'2-digit'})}</span>` : '';
     const notes = j.notes ? `<div class="card-notes">${esc(j.notes)}</div>` : '';
+    const thumbHtml = j.thumbnailUrl
+      ? `<img class="card-thumb" src="${esc(j.thumbnailUrl)}" alt="" loading="lazy" onerror="this.style.display='none'">`
+      : (mu ? `<div class="card-thumb-ph">${mu.icon}</div>` : '');
     return `<div class="job-card s-${j.status}" data-id="${j.id}">
       <div class="card-top">
         <div class="card-name">${esc(j.name)}</div>
         <div class="badge s-${j.status}">${j.status}</div>
       </div>
-      <div class="card-meta">${src}${date}</div>
-      ${notes}
+      <div class="card-body">
+        <div class="card-body-text">
+          <div class="card-meta">${src}${date}</div>
+          ${notes}
+        </div>
+        ${thumbHtml}
+      </div>
     </div>`;
   }).join('');
 
@@ -449,7 +481,21 @@ function refreshHint() {
   }
 }
 
-// ── SPEICHERN ────────────────────────────────────
+// ── THUMBNAIL FETCH ──────────────────────────────
+async function fetchThumbnail(pageUrl) {
+  try {
+    const proxy = `https://api.allorigins.win/get?url=${encodeURIComponent(pageUrl)}`;
+    const res   = await fetch(proxy, { signal: AbortSignal.timeout(8000) });
+    if (!res.ok) return '';
+    const { contents } = await res.json();
+    // og:image in beiden Attribut-Reihenfolgen suchen
+    const m = contents.match(/property=["']og:image["'][^>]*content=["']([^"']+)["']/i)
+           || contents.match(/content=["']([^"']+)["'][^>]*property=["']og:image["']/i);
+    return m ? m[1] : '';
+  } catch { return ''; }
+}
+
+
 document.getElementById('btn-save').addEventListener('click', async () => {
   const name   = document.getElementById('f-name').value.trim();
   const mwRaw  = document.getElementById('f-mw').value.trim();
@@ -465,10 +511,26 @@ document.getElementById('btn-save').addEventListener('click', async () => {
   }
 
   const parsed  = parsePlatform(mwRaw);
-  const payload = { name, modelId: parsed?.modelId || '', platform: parsed?.platform || '', notes, status };
   const saveBtn = document.getElementById('btn-save');
   saveBtn.disabled    = true;
   saveBtn.textContent = '…';
+
+  // Thumbnail holen wenn Link vorhanden
+  let thumbnailUrl = '';
+  if (parsed) {
+    const mu = PLATFORMS[parsed.platform];
+    const pageUrl = mu.url(parsed.modelId);
+    const existing = editingId ? jobs.find(j => j.id === editingId) : null;
+    const sameLink = existing && existing.modelId === parsed.modelId && existing.platform === parsed.platform;
+    if (sameLink && existing.thumbnailUrl) {
+      thumbnailUrl = existing.thumbnailUrl; // unveränderter Link → bestehendes Bild behalten
+    } else {
+      saveBtn.textContent = '🖼 Bild…';
+      thumbnailUrl = await fetchThumbnail(pageUrl);
+    }
+  }
+
+  const payload = { name, modelId: parsed?.modelId || '', platform: parsed?.platform || '', thumbnailUrl, notes, status };
 
   try {
     if (editingId) {
@@ -530,9 +592,14 @@ function openDetail(id) {
     ? new Date(j.createdAt.seconds*1000).toLocaleDateString('de-DE',{day:'2-digit',month:'2-digit',year:'numeric'})
     : '—';
 
+  const thumbBlock = j.thumbnailUrl
+    ? `<img class="detail-thumb" src="${esc(j.thumbnailUrl)}" alt="" onerror="this.style.display='none'">`
+    : '';
+
   const sheet = document.getElementById('detail-sheet');
   sheet.innerHTML = `
     <div class="handle"></div>
+    ${thumbBlock}
     <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:.5rem;margin-bottom:1rem">
       <div style="font-weight:700;font-size:1.05rem;flex:1;line-height:1.3">${esc(j.name)}</div>
       <div class="badge s-${j.status}">${j.status}</div>
