@@ -800,8 +800,8 @@ window.importiereCSV = async (typ) => {
   const text = document.getElementById('csv-'+typ).value;
   if (!text.trim()) { log('Kein CSV eingegeben', 'warn'); return; }
   const rows = typ === 'einsaetze' ? parseEinsatzCSV(text) : parseCSV(text);
-  const col = typ === 'dienste' ? 'dienste' : 'einsaetze';
-  const typLabel = typ === 'dienste' ? 'dienst' : 'einsatz';
+  const col = typ === 'dienst' ? 'dienste' : 'einsaetze';
+  const typLabel = typ === 'dienst' ? 'dienst' : 'einsatz';
 
   log(`Importiere ${rows.length} ${typ}...`, 'head');
   document.getElementById('btn-imp-'+typ).disabled = true;
@@ -845,7 +845,7 @@ window.vorschauZuordnen = async () => {
 
   await ladeUsers();
   const rows = typ === 'einsaetze' ? parseEinsatzCSV(text) : parseCSV(text);
-  const col = typ === 'dienste' ? 'dienste' : 'einsaetze';
+  const col = typ === 'dienst' ? 'dienste' : 'einsaetze';
 
   // Einträge laden
   const colSnap = await getDocs(collection(db, col));
@@ -934,7 +934,7 @@ window.starteZuordnen = async () => {
 
   await ladeUsers();
   const rows = typ === 'einsaetze' ? parseEinsatzCSV(text) : parseCSV(text);
-  const col  = typ === 'dienste' ? 'dienste' : 'einsaetze';
+  const col  = typ === 'dienst' ? 'dienste' : 'einsaetze';
   const colSnap = await getDocs(collection(db, col));
   const eintraege = colSnap.docs.map(d => ({id:d.id,...d.data()}));
 
