@@ -34,7 +34,6 @@
     overflow-x: hidden;
   }
 
-  /* Animated grid background */
   body::before {
     content: '';
     position: fixed;
@@ -47,7 +46,6 @@
     z-index: 0;
   }
 
-  /* Red glow top-left */
   body::after {
     content: '';
     position: fixed;
@@ -267,6 +265,21 @@
     </a>
   </div>
 
+  <!-- 3D-DRUCK -->
+  <div class="section">
+    <div class="section-label">🖨️ 3D-Druck</div>
+
+    <a class="app-card" href="/print3d/">
+      <div class="app-icon orange">⬡</div>
+      <div class="app-info">
+        <div class="app-name">3D Print Manager</div>
+        <div class="app-desc">Aufträge · Status · MakerWorld · Thingiverse · Printables</div>
+      </div>
+      <span class="app-badge badge-version" id="badge-print3d">v–</span>
+      <span class="app-arrow">›</span>
+    </a>
+  </div>
+
   <!-- INFRASTRUKTUR -->
   <div class="section">
     <div class="section-label">☁️ Infrastruktur</div>
@@ -311,9 +324,10 @@
 
   // Versionen live laden
   [
-    ['/ortswehr/version.json', 'badge-ortswehr'],
+    ['/ortswehr/version.json',  'badge-ortswehr'],
     ['/fw-deploy/version.json', 'badge-deploy'],
     ['/fw-import/version.json', 'badge-import'],
+    ['/print3d/version.json',   'badge-print3d'],
   ].forEach(([url, id]) => {
     fetch(url + '?t=' + Date.now())
       .then(r => r.json())
