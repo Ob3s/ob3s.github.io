@@ -286,7 +286,10 @@
     </div>
     <div class="fg">
       <label class="fl">Makerworld-Link oder ID</label>
-      <input class="fi" id="f-mw" type="text" placeholder="Makerworld-, Thingiverse- oder Printables-Link" />
+      <div style="display:flex;gap:0.5rem">
+        <input class="fi" id="f-mw" type="text" placeholder="Makerworld-, Thingiverse- oder Printables-Link" style="flex:1" />
+        <button id="btn-refetch" title="Vorschaubild neu laden" style="padding:0 0.75rem;background:var(--bg);border:1px solid var(--border);border-radius:var(--r);color:var(--muted);font-size:1.1rem;flex-shrink:0">🖼</button>
+      </div>
       <div class="mw-hint" id="mw-hint"></div>
     </div>
     <div class="fg">
@@ -382,8 +385,8 @@ function render() {
           .toLocaleDateString('de-DE',{day:'2-digit',month:'2-digit',year:'2-digit'})}</span>` : '';
     const notes = j.notes ? `<div class="card-notes">${esc(j.notes)}</div>` : '';
     const thumbHtml = j.thumbnailUrl
-      ? `<img class="card-thumb" src="${esc(j.thumbnailUrl)}" alt="" loading="lazy" onerror="this.style.display='none'">`
-      : (mu ? `<div class="card-thumb-ph">${mu.icon}</div>` : '');
+      ? `<img class="card-thumb" src="${esc(j.thumbnailUrl)}" alt="" loading="lazy" onerror="this.remove()">`
+      : '';
     return `<div class="job-card s-${j.status}" data-id="${j.id}">
       <div class="card-top">
         <div class="card-name">${esc(j.name)}</div>
@@ -423,6 +426,7 @@ document.getElementById('fab').addEventListener('click', () => {
   document.getElementById('f-mw').value    = '';
   document.getElementById('f-notes').value = '';
   document.getElementById('mw-hint').innerHTML = '';
+  document.getElementById('f-mw').dataset.thumb = '';
   document.getElementById('btn-del').style.display = 'none';
   setStatus('offen');
   openB('form-back');
@@ -484,14 +488,12 @@ function refreshHint() {
 // ── THUMBNAIL FETCH ──────────────────────────────
 async function fetchThumbnail(pageUrl) {
   try {
-    const proxy = `https://api.allorigins.win/get?url=${encodeURIComponent(pageUrl)}`;
-    const res   = await fetch(proxy, { signal: AbortSignal.timeout(8000) });
+    const api = `https://api.microlink.io/?url=${encodeURIComponent(pageUrl)}`;
+    const res = await fetch(api, { signal: AbortSignal.timeout(10000) });
     if (!res.ok) return '';
-    const { contents } = await res.json();
-    // og:image in beiden Attribut-Reihenfolgen suchen
-    const m = contents.match(/property=["']og:image["'][^>]*content=["']([^"']+)["']/i)
-           || contents.match(/content=["']([^"']+)["'][^>]*property=["']og:image["']/i);
-    return m ? m[1] : '';
+    const data = await res.json();
+    // microlink gibt data.image.url oder data.screenshot.url
+    return data?.data?.image?.url || data?.data?.screenshot?.url || '';
   } catch { return ''; }
 }
 
@@ -525,8 +527,14 @@ document.getElementById('btn-save').addEventListener('click', async () => {
     if (sameLink && existing.thumbnailUrl) {
       thumbnailUrl = existing.thumbnailUrl; // unveränderter Link → bestehendes Bild behalten
     } else {
-      saveBtn.textContent = '🖼 Bild…';
-      thumbnailUrl = await fetchThumbnail(pageUrl);
+      // Wurde Bild schon manuell per 🖼-Button geladen?
+      const preloaded = document.getElementById('f-mw').dataset.thumb || '';
+      if (preloaded) {
+        thumbnailUrl = preloaded;
+      } else {
+        saveBtn.textContent = '🖼 Bild…';
+        thumbnailUrl = await fetchThumbnail(pageUrl);
+      }
     }
   }
 
@@ -551,6 +559,30 @@ document.getElementById('btn-save').addEventListener('click', async () => {
 });
 
 document.getElementById('btn-cancel').addEventListener('click', () => closeB('form-back'));
+
+// ── BILD NEU LADEN ────────────────────────────────
+document.getElementById('btn-refetch').addEventListener('click', async () => {
+  const raw    = document.getElementById('f-mw').value.trim();
+  const parsed = parsePlatform(raw);
+  if (!parsed) { toast('Kein gültiger Link'); return; }
+  const btn = document.getElementById('btn-refetch');
+  btn.textContent = '⏳';
+  btn.disabled = true;
+  const pageUrl = PLATFORMS[parsed.platform].url(parsed.modelId);
+  const url = await fetchThumbnail(pageUrl);
+  btn.textContent = '🖼';
+  btn.disabled = false;
+  if (url) {
+    // Vorschau im Hint zeigen
+    document.getElementById('mw-hint').innerHTML =
+      `<img src="${url}" style="width:100%;border-radius:6px;margin-top:0.4rem;max-height:120px;object-fit:cover" onerror="this.remove()">`;
+    // Temporär merken für Speichern
+    document.getElementById('f-mw').dataset.thumb = url;
+    toast('Bild gefunden ✓');
+  } else {
+    toast('Kein Bild gefunden');
+  }
+});
 
 // ── LÖSCHEN ──────────────────────────────────────
 document.getElementById('btn-del').addEventListener('click', async () => {
