@@ -259,7 +259,7 @@
     </div>
     <div class="fg">
       <label class="fl">Makerworld-Link oder ID</label>
-      <input class="fi" id="f-mw" type="text" placeholder="https://makerworld.com/… oder 123456" />
+      <input class="fi" id="f-mw" type="text" placeholder="Makerworld-, Thingiverse- oder Printables-Link" />
       <div class="mw-hint" id="mw-hint"></div>
     </div>
     <div class="fg">
@@ -335,7 +335,7 @@ function render() {
     (filter === 'alle' || j.status === filter) &&
     (!q || (j.name||'').toLowerCase().includes(q) ||
            (j.notes||'').toLowerCase().includes(q) ||
-           (j.mwId||'').includes(q))
+           (j.modelId||j.mwId||'').includes(q))
   );
 
   const el = document.getElementById('job-list');
@@ -348,7 +348,8 @@ function render() {
   }
 
   el.innerHTML = list.map(j => {
-    const mw   = j.mwId ? `<span class="meta-mw">MakerWorld #${j.mwId}</span>` : '';
+    const mu   = modelUrl(j);
+    const src  = mu ? `<span class="meta-mw">${mu.icon} ${mu.label} #${mu.id}</span>` : '';
     const date = j.createdAt?.seconds
       ? `<span class="meta-date">${new Date(j.createdAt.seconds*1000)
           .toLocaleDateString('de-DE',{day:'2-digit',month:'2-digit',year:'2-digit'})}</span>` : '';
@@ -358,7 +359,7 @@ function render() {
         <div class="card-name">${esc(j.name)}</div>
         <div class="badge s-${j.status}">${j.status}</div>
       </div>
-      <div class="card-meta">${mw}${date}</div>
+      <div class="card-meta">${src}${date}</div>
       ${notes}
     </div>`;
   }).join('');
@@ -405,18 +406,44 @@ function getStatus() {
   return document.querySelector('.s-btn.on')?.dataset.s ?? 'offen';
 }
 
-// ── MW HINT ──────────────────────────────────────
+// ── PLATTFORM-ERKENNUNG ──────────────────────────
+const PLATFORMS = {
+  makerworld:  { label: 'MakerWorld',  url: id => `https://makerworld.com/en/models/${id}`,      icon: '🟠' },
+  thingiverse: { label: 'Thingiverse', url: id => `https://www.thingiverse.com/thing:${id}`,     icon: '🔵' },
+  printables:  { label: 'Printables',  url: id => `https://www.printables.com/model/${id}`,      icon: '🟣' },
+};
+
+function parsePlatform(raw) {
+  if (!raw) return null;
+  raw = raw.trim();
+  let platform = 'makerworld';
+  if (raw.includes('thingiverse.com')) platform = 'thingiverse';
+  else if (raw.includes('printables.com')) platform = 'printables';
+  const m = raw.match(/(\d{4,})/);
+  if (!m) return null;
+  return { platform, modelId: m[1] };
+}
+
+function modelUrl(j) {
+  // Rückwärtskompatibel mit alten Einträgen (mwId)
+  const id       = j.modelId || j.mwId || '';
+  const platform = j.platform || 'makerworld';
+  if (!id) return null;
+  return { id, platform, ...PLATFORMS[platform] };
+}
+
 document.getElementById('f-mw').addEventListener('input', refreshHint);
 function refreshHint() {
   const raw  = document.getElementById('f-mw').value.trim();
   const hint = document.getElementById('mw-hint');
   if (!raw) { hint.innerHTML = ''; return; }
-  const m = raw.match(/(\d{5,})/);
-  hint.innerHTML = m ? `ID erkannt: <b>${m[1]}</b>` : 'Keine gültige ID gefunden.';
-}
-function extractId(raw) {
-  const m = (raw||'').match(/(\d{5,})/);
-  return m ? m[1] : '';
+  const parsed = parsePlatform(raw);
+  if (parsed) {
+    const p = PLATFORMS[parsed.platform];
+    hint.innerHTML = `${p.icon} ${p.label} &ndash; ID <b>${parsed.modelId}</b>`;
+  } else {
+    hint.innerHTML = 'Kein gültiger Link erkannt.';
+  }
 }
 
 // ── SPEICHERN ────────────────────────────────────
@@ -434,7 +461,8 @@ document.getElementById('btn-save').addEventListener('click', async () => {
     return;
   }
 
-  const payload = { name, mwId: extractId(mwRaw), notes, status };
+  const parsed  = parsePlatform(mwRaw);
+  const payload = { name, modelId: parsed?.modelId || '', platform: parsed?.platform || '', notes, status };
   const saveBtn = document.getElementById('btn-save');
   saveBtn.disabled    = true;
   saveBtn.textContent = '…';
@@ -476,14 +504,15 @@ function openDetail(id) {
   const j = jobs.find(x => x.id === id);
   if (!j) return;
 
-  const mwBlock = j.mwId ? `
+  const mu = modelUrl(j);
+  const mwBlock = mu ? `
     <div class="d-field">
-      <div class="d-label">Makerworld</div>
+      <div class="d-label">Quelle</div>
       <div class="mw-card">
-        <div class="mw-ico">🖨️</div>
+        <div class="mw-ico">${mu.icon}</div>
         <div>
-          <div class="mw-id">ID ${j.mwId}</div>
-          <a class="mw-link" href="https://makerworld.com/en/models/${j.mwId}" target="_blank">In Makerworld öffnen ↗</a>
+          <div class="mw-id">${mu.label} &ndash; ID ${mu.id}</div>
+          <a class="mw-link" href="${mu.url(mu.id)}" target="_blank">Modell öffnen ↗</a>
         </div>
       </div>
     </div>` : '';
@@ -529,7 +558,9 @@ function loadEditForm(j) {
   editingId = j.id;
   document.getElementById('form-ttl').textContent = '// BEARBEITEN';
   document.getElementById('f-name').value  = j.name  || '';
-  document.getElementById('f-mw').value    = j.mwId ? `https://makerworld.com/en/models/${j.mwId}` : '';
+  // Rückwärtskompatibel: alte mwId-Einträge als Makerworld-URL rekonstruieren
+  const mu = modelUrl(j);
+  document.getElementById('f-mw').value    = mu ? mu.url(mu.id) : '';
   document.getElementById('f-notes').value = j.notes || '';
   document.getElementById('btn-del').style.display = 'block';
   setStatus(j.status);
