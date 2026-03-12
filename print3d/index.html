@@ -238,10 +238,85 @@
     }
     #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 
-    .spin {
-      width: 22px; height: 22px; border: 2px solid var(--border); border-top-color: var(--accent);
-      border-radius: 50%; animation: rot 0.7s linear infinite; margin: 3rem auto;
+    /* ── FILAMENT CHIPS (Formular) ── */
+    .fil-section { margin-bottom: 0.9rem; }
+    .fil-chips { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: 0.4rem; min-height: 2rem; }
+    .fil-chip {
+      display: flex; align-items: center; gap: 0.4rem; padding: 0.25rem 0.6rem;
+      border-radius: 99px; border: 1px solid var(--border); font-size: 0.78rem;
+      background: var(--bg); cursor: pointer; transition: all 0.15s;
     }
+    .fil-chip .swatch { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+    .fil-chip .remove { color: var(--muted); font-size: 0.9rem; line-height: 1; margin-left: 0.1rem; }
+    .fil-chip:hover .remove { color: var(--danger); }
+    .btn-add-fil {
+      display: flex; align-items: center; gap: 0.4rem; padding: 0.3rem 0.7rem;
+      border-radius: 99px; border: 1px dashed var(--border); font-size: 0.78rem;
+      background: transparent; color: var(--muted); cursor: pointer; transition: all 0.15s;
+    }
+    .btn-add-fil:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* ── FILAMENT PICKER MODAL ── */
+    .fp-search {
+      width: 100%; padding: 0.6rem 0.9rem; background: var(--bg);
+      border: 1px solid var(--border); border-radius: var(--r);
+      color: var(--text); font-size: 0.88rem; margin-bottom: 0.75rem;
+      transition: border-color 0.2s;
+    }
+    .fp-search:focus { outline: none; border-color: var(--accent); }
+    .fp-search::placeholder { color: #3a3a3a; }
+    .fp-list { display: flex; flex-direction: column; gap: 0.35rem; max-height: 55dvh; overflow-y: auto; }
+    .fp-item {
+      display: flex; align-items: center; gap: 0.75rem; padding: 0.6rem 0.75rem;
+      background: var(--bg); border: 1px solid var(--border); border-radius: var(--r);
+      cursor: pointer; transition: all 0.15s;
+    }
+    .fp-item:hover  { border-color: var(--accent); background: rgba(249,115,22,.05); }
+    .fp-item.picked { border-color: var(--accent); background: rgba(249,115,22,.08); }
+    .fp-swatch { width: 24px; height: 24px; border-radius: 6px; flex-shrink: 0; border: 1px solid rgba(255,255,255,.1); }
+    .fp-info { flex: 1; min-width: 0; }
+    .fp-name { font-size: 0.85rem; font-weight: 500; }
+    .fp-sub  { font-family: var(--mono); font-size: 0.68rem; color: var(--muted); margin-top: 0.1rem; }
+    .fp-check { color: var(--accent); font-size: 1rem; }
+    .fp-empty { text-align: center; padding: 2rem 1rem; color: var(--muted); font-size: 0.85rem; }
+
+    /* ── FILAMENT IMPORT MODAL ── */
+    .imp-area {
+      width: 100%; min-height: 140px; padding: 0.75rem; background: var(--bg);
+      border: 1px solid var(--border); border-radius: var(--r); color: var(--text);
+      font-family: var(--mono); font-size: 0.75rem; line-height: 1.5; resize: vertical;
+      transition: border-color 0.2s;
+    }
+    .imp-area:focus { outline: none; border-color: var(--accent); }
+    .imp-area::placeholder { color: #3a3a3a; }
+    .imp-preview { margin-top: 0.75rem; display: flex; flex-direction: column; gap: 0.3rem; max-height: 40dvh; overflow-y: auto; }
+    .imp-row {
+      display: flex; align-items: center; gap: 0.6rem; padding: 0.4rem 0.6rem;
+      background: var(--bg); border: 1px solid var(--border); border-radius: var(--r); font-size: 0.8rem;
+    }
+    .imp-swatch { width: 18px; height: 18px; border-radius: 4px; flex-shrink: 0; border: 1px solid rgba(255,255,255,.1); }
+    .imp-info { flex: 1; min-width: 0; }
+    .imp-name { font-weight: 500; }
+    .imp-meta { font-family: var(--mono); font-size: 0.67rem; color: var(--muted); }
+    .imp-stats { font-family: var(--mono); font-size: 0.72rem; color: var(--muted); margin: 0.5rem 0; }
+    .imp-stats b { color: var(--accent); }
+
+    /* ── FILAMENT MANAGER HEADER BTN ── */
+    .btn-fil-mgr {
+      padding: 0.2rem 0.6rem; background: var(--surface); border: 1px solid var(--border);
+      border-radius: 99px; color: var(--muted); font-size: 0.75rem; font-family: var(--mono);
+      display: flex; align-items: center; gap: 0.3rem; transition: all 0.15s;
+    }
+    .btn-fil-mgr:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* detail filament chips */
+    .d-chips { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: 0.3rem; }
+    .d-chip {
+      display: flex; align-items: center; gap: 0.35rem; padding: 0.2rem 0.6rem;
+      border-radius: 99px; border: 1px solid var(--border); font-size: 0.75rem; background: var(--bg);
+    }
+    .d-chip .swatch { width: 10px; height: 10px; border-radius: 50%; }
+
     @keyframes rot { to { transform: rotate(360deg); } }
   </style>
 </head>
@@ -251,6 +326,7 @@
   <header>
     <div class="logo">⬡ Print<span>3D</span></div>
     <div style="display:flex;align-items:center;gap:0.5rem">
+      <button class="btn-fil-mgr" id="btn-fil-mgr">🧵 Filamente</button>
       <div style="font-family:var(--mono);font-size:0.65rem;color:var(--muted);background:var(--surface);border:1px solid var(--border);border-radius:99px;padding:0.2rem 0.55rem" id="ver-badge"></div>
       <div class="net-badge" id="net-badge">
         <div class="dot"></div>
@@ -300,6 +376,11 @@
         <button class="s-btn"    data-s="fertig">Fertig</button>
       </div>
     </div>
+    <div class="fg fil-section">
+      <label class="fl">Filament(e)</label>
+      <div class="fil-chips" id="f-filchips"></div>
+      <button class="btn-add-fil" id="btn-open-picker" type="button">+ Filament wählen</button>
+    </div>
     <div class="fg">
       <label class="fl">Notizen</label>
       <textarea class="ft" id="f-notes" placeholder="Material, Farbe, Infill…"></textarea>
@@ -318,12 +399,58 @@
   <div class="sheet" id="detail-sheet"></div>
 </div>
 
+<!-- FILAMENT PICKER MODAL -->
+<div class="backdrop" id="picker-back">
+  <div class="sheet">
+    <div class="handle"></div>
+    <div class="sheet-title">// FILAMENT WÄHLEN</div>
+    <input class="fp-search" id="fp-search" type="search" placeholder="Suchen (Marke, Material, Farbe)…" />
+    <div class="fp-list" id="fp-list"></div>
+    <div style="margin-top:1rem;display:flex;gap:0.6rem">
+      <button class="btn-cancel" id="fp-cancel" style="flex:1">Abbrechen</button>
+      <button class="btn-save"   id="fp-confirm">Übernehmen</button>
+    </div>
+  </div>
+</div>
+
+<!-- FILAMENT MANAGER MODAL -->
+<div class="backdrop" id="fmgr-back">
+  <div class="sheet">
+    <div class="handle"></div>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.25rem">
+      <div class="sheet-title" style="margin:0">// FILAMENTE</div>
+      <button id="btn-open-import" style="font-size:0.78rem;padding:0.3rem 0.8rem;background:var(--accent);color:#000;border:none;border-radius:var(--r);font-weight:600">Import ↓</button>
+    </div>
+    <div id="fmgr-list"></div>
+    <button class="btn-cancel" id="fmgr-close" style="width:100%;margin-top:1rem">Schließen</button>
+  </div>
+</div>
+
+<!-- FILAMENT IMPORT MODAL -->
+<div class="backdrop" id="imp-back">
+  <div class="sheet">
+    <div class="handle"></div>
+    <div class="sheet-title">// IMPORT AUS 3DFILAMENTPROFILES</div>
+    <p style="font-size:0.78rem;color:var(--muted);margin-bottom:0.75rem;line-height:1.6">
+      Gehe auf <a href="https://3dfilamentprofiles.com/myfilaments" target="_blank" style="color:var(--accent)">3dfilamentprofiles.com/myfilaments</a>,
+      markiere die gesamte Tabelle (<b style="color:var(--text)">Strg+A</b>), kopiere sie (<b style="color:var(--text)">Strg+C</b>)
+      und füge sie hier ein:
+    </p>
+    <textarea class="imp-area" id="imp-paste" placeholder="Hier einfügen (Strg+V)…"></textarea>
+    <div id="imp-preview"></div>
+    <div style="margin-top:0.75rem;display:flex;gap:0.6rem">
+      <button class="btn-cancel" id="imp-cancel">Abbrechen</button>
+      <button class="btn-save"   id="imp-confirm" disabled>Importieren</button>
+    </div>
+  </div>
+</div>
+
 <div id="toast"></div>
 
 <script type="module">
 import { initializeApp }   from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
 import {
-  getFirestore, collection, addDoc, updateDoc, deleteDoc,
+  getFirestore, collection, addDoc, updateDoc, deleteDoc, writeBatch,
   doc, onSnapshot, serverTimestamp, enableIndexedDbPersistence
 } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 
@@ -340,9 +467,12 @@ const db = getFirestore(initializeApp({
 enableIndexedDbPersistence(db).catch(() => {});
 
 // ── STATE ────────────────────────────────────────
-let jobs      = [];
-let filter    = 'alle';
-let editingId = null;
+let jobs        = [];
+let filaments   = [];
+let filter      = 'alle';
+let editingId   = null;
+let pickedFilIds = [];   // aktuell im Formular gewählte Filament-IDs
+let pickerTemp   = [];   // temporäre Auswahl im Picker
 
 // ── LIVE SYNC ────────────────────────────────────
 onSnapshot(collection(db, 'print_jobs'), snap => {
@@ -351,6 +481,13 @@ onSnapshot(collection(db, 'print_jobs'), snap => {
     .sort((a, b) => (b.createdAt?.seconds ?? 0) - (a.createdAt?.seconds ?? 0));
   render();
 }, err => console.error('Firestore error:', err));
+
+onSnapshot(collection(db, 'filaments'), snap => {
+  filaments = snap.docs
+    .map(d => ({ id: d.id, ...d.data() }))
+    .sort((a, b) => `${a.brand}${a.colorName}`.localeCompare(`${b.brand}${b.colorName}`));
+  renderFmgr();
+}, err => console.error('Filaments error:', err));
 
 // ── RENDER ───────────────────────────────────────
 function render() {
@@ -428,6 +565,8 @@ document.getElementById('fab').addEventListener('click', () => {
   document.getElementById('mw-hint').innerHTML = '';
   document.getElementById('f-mw').dataset.thumb = '';
   document.getElementById('btn-del').style.display = 'none';
+  pickedFilIds = [];
+  renderFilChips();
   setStatus('offen');
   openB('form-back');
 });
@@ -538,7 +677,7 @@ document.getElementById('btn-save').addEventListener('click', async () => {
     }
   }
 
-  const payload = { name, modelId: parsed?.modelId || '', platform: parsed?.platform || '', thumbnailUrl, notes, status };
+  const payload = { name, modelId: parsed?.modelId || '', platform: parsed?.platform || '', thumbnailUrl, notes, status, filamentIds: pickedFilIds };
 
   try {
     if (editingId) {
@@ -614,6 +753,19 @@ function openDetail(id) {
       </div>
     </div>` : '';
 
+  const filBlock = (j.filamentIds?.length)
+    ? `<div class="d-field">
+        <div class="d-label">Filamente</div>
+        <div class="d-chips">${
+          j.filamentIds.map(fid => {
+            const f = filaments.find(x => x.id === fid);
+            if (!f) return '';
+            const hex = f.colorHex || '#888';
+            return `<div class="d-chip"><div class="swatch" style="background:${esc(hex)}"></div>${esc(f.brand)} ${esc(f.colorName)}</div>`;
+          }).join('')
+        }</div>
+      </div>` : '';
+
   const notesBlock = j.notes ? `
     <div class="d-field">
       <div class="d-label">Notizen</div>
@@ -637,6 +789,7 @@ function openDetail(id) {
       <div class="badge s-${j.status}">${j.status}</div>
     </div>
     ${mwBlock}
+    ${filBlock}
     ${notesBlock}
     <div class="d-field">
       <div class="d-label">Erstellt</div>
@@ -665,6 +818,8 @@ function loadEditForm(j) {
   document.getElementById('f-mw').value    = mu ? mu.url(mu.id) : '';
   document.getElementById('f-notes').value = j.notes || '';
   document.getElementById('btn-del').style.display = 'block';
+  pickedFilIds = j.filamentIds ? [...j.filamentIds] : [];
+  renderFilChips();
   setStatus(j.status);
   refreshHint();
   openB('form-back');
@@ -709,6 +864,238 @@ updateNet();
 // ── SERVICE WORKER ────────────────────────────────
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('/sw.js').catch(() => {});
+}
+
+// ── FILAMENT CHIPS (Formular) ────────────────────
+function renderFilChips() {
+  const wrap = document.getElementById('f-filchips');
+  wrap.innerHTML = pickedFilIds.map(fid => {
+    const f = filaments.find(x => x.id === fid);
+    if (!f) return '';
+    const hex = f.colorHex || '#888';
+    return `<div class="fil-chip" data-fid="${fid}">
+      <div class="swatch" style="background:${esc(hex)}"></div>
+      <span>${esc(f.brand)} ${esc(f.colorName)}</span>
+      <span class="remove">×</span>
+    </div>`;
+  }).join('');
+  wrap.querySelectorAll('.fil-chip').forEach(chip => {
+    chip.addEventListener('click', () => {
+      pickedFilIds = pickedFilIds.filter(id => id !== chip.dataset.fid);
+      renderFilChips();
+    });
+  });
+}
+
+// ── FILAMENT PICKER ──────────────────────────────
+document.getElementById('btn-open-picker').addEventListener('click', () => {
+  pickerTemp = [...pickedFilIds];
+  renderFpList('');
+  document.getElementById('fp-search').value = '';
+  openB('picker-back');
+});
+
+document.getElementById('fp-search').addEventListener('input', e => renderFpList(e.target.value));
+document.getElementById('fp-cancel').addEventListener('click', () => closeB('picker-back'));
+document.getElementById('fp-confirm').addEventListener('click', () => {
+  pickedFilIds = [...pickerTemp];
+  renderFilChips();
+  closeB('picker-back');
+});
+document.getElementById('picker-back').addEventListener('click', e => {
+  if (e.target.id === 'picker-back') closeB('picker-back');
+});
+
+function renderFpList(q) {
+  const list = document.getElementById('fp-list');
+  const term = q.toLowerCase();
+  const filtered = filaments.filter(f =>
+    !term ||
+    (f.brand||'').toLowerCase().includes(term) ||
+    (f.colorName||'').toLowerCase().includes(term) ||
+    (f.material||'').toLowerCase().includes(term)
+  );
+  if (!filtered.length) {
+    list.innerHTML = `<div class="fp-empty">${
+      filaments.length ? 'Keine Treffer.' : 'Noch keine Filamente importiert.<br>Klicke oben auf „Filamente" → Import.'
+    }</div>`;
+    return;
+  }
+  list.innerHTML = filtered.map(f => {
+    const hex     = f.colorHex || '#888';
+    const picked  = pickerTemp.includes(f.id);
+    return `<div class="fp-item ${picked ? 'picked' : ''}" data-fid="${f.id}">
+      <div class="fp-swatch" style="background:${esc(hex)}"></div>
+      <div class="fp-info">
+        <div class="fp-name">${esc(f.colorName || '—')}</div>
+        <div class="fp-sub">${esc(f.brand)} · ${esc(f.material)}${f.type ? ' ' + esc(f.type) : ''}</div>
+      </div>
+      ${picked ? '<span class="fp-check">✓</span>' : ''}
+    </div>`;
+  }).join('');
+  list.querySelectorAll('.fp-item').forEach(item => {
+    item.addEventListener('click', () => {
+      const fid = item.dataset.fid;
+      if (pickerTemp.includes(fid)) pickerTemp = pickerTemp.filter(id => id !== fid);
+      else pickerTemp.push(fid);
+      renderFpList(document.getElementById('fp-search').value);
+    });
+  });
+}
+
+// ── FILAMENT MANAGER ─────────────────────────────
+document.getElementById('btn-fil-mgr').addEventListener('click', () => openB('fmgr-back'));
+document.getElementById('fmgr-close').addEventListener('click', () => closeB('fmgr-back'));
+document.getElementById('fmgr-back').addEventListener('click', e => {
+  if (e.target.id === 'fmgr-back') closeB('fmgr-back');
+});
+document.getElementById('btn-open-import').addEventListener('click', () => {
+  document.getElementById('imp-paste').value = '';
+  document.getElementById('imp-preview').innerHTML = '';
+  document.getElementById('imp-confirm').disabled = true;
+  openB('imp-back');
+});
+
+function renderFmgr() {
+  const el = document.getElementById('fmgr-list');
+  if (!el) return;
+  if (!filaments.length) {
+    el.innerHTML = `<div style="text-align:center;padding:2rem 1rem;color:var(--muted);font-size:0.85rem">
+      Noch keine Filamente.<br>Nutze den Import-Button oben.
+    </div>`;
+    return;
+  }
+  // Gruppieren nach Marke
+  const byBrand = {};
+  filaments.forEach(f => {
+    const b = f.brand || 'Unbekannt';
+    if (!byBrand[b]) byBrand[b] = [];
+    byBrand[b].push(f);
+  });
+  el.innerHTML = Object.entries(byBrand).map(([brand, items]) => `
+    <div style="margin-bottom:1rem">
+      <div style="font-family:var(--mono);font-size:0.65rem;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:.4rem">${esc(brand)}</div>
+      <div style="display:flex;flex-wrap:wrap;gap:.35rem">
+        ${items.map(f => `
+          <div style="display:flex;align-items:center;gap:.35rem;padding:.25rem .6rem;background:var(--bg);border:1px solid var(--border);border-radius:99px;font-size:.78rem" title="${esc(f.material)}${f.type?' '+esc(f.type):''}">
+            <div style="width:10px;height:10px;border-radius:50%;background:${esc(f.colorHex||'#888')};flex-shrink:0"></div>
+            ${esc(f.colorName)}
+          </div>`).join('')}
+      </div>
+    </div>`
+  ).join('') + `<div style="margin-top:1rem;text-align:right">
+    <button id="btn-clear-fils" style="font-size:.75rem;color:var(--danger);background:transparent;border:1px solid rgba(239,68,68,.3);padding:.3rem .75rem;border-radius:var(--r)">Alle löschen</button>
+  </div>`;
+  document.getElementById('btn-clear-fils')?.addEventListener('click', async () => {
+    if (!confirm(`Alle ${filaments.length} Filamente löschen?`)) return;
+    const batch = writeBatch(db);
+    filaments.forEach(f => batch.delete(doc(db, 'filaments', f.id)));
+    await batch.commit();
+    toast('Filamente gelöscht');
+  });
+}
+
+// ── FILAMENT IMPORT ──────────────────────────────
+let parsedFilaments = [];
+
+document.getElementById('imp-cancel').addEventListener('click', () => closeB('imp-back'));
+document.getElementById('imp-back').addEventListener('click', e => {
+  if (e.target.id === 'imp-back') closeB('imp-back');
+});
+
+document.getElementById('imp-paste').addEventListener('input', () => {
+  const raw = document.getElementById('imp-paste').value.trim();
+  parsedFilaments = parseTsvFilaments(raw);
+  renderImportPreview();
+});
+
+document.getElementById('imp-confirm').addEventListener('click', async () => {
+  if (!parsedFilaments.length) return;
+  const btn = document.getElementById('imp-confirm');
+  btn.disabled = true; btn.textContent = '…';
+  try {
+    const batch = writeBatch(db);
+    parsedFilaments.forEach(f => {
+      batch.set(doc(collection(db, 'filaments')), f);
+    });
+    await batch.commit();
+    toast(`${parsedFilaments.length} Filamente importiert ✓`);
+    closeB('imp-back');
+  } catch(e) {
+    toast('Fehler: ' + e.message);
+  } finally {
+    btn.disabled = false; btn.textContent = 'Importieren';
+  }
+});
+
+function parseTsvFilaments(raw) {
+  const lines = raw.split('\n').map(l => l.trim()).filter(Boolean);
+  if (lines.length < 2) return [];
+
+  // Spalten aus erster Zeile erkennen
+  const headers = lines[0].split('\t').map(h => h.trim().toLowerCase());
+
+  // Spalten-Mapping – flexibel für unterschiedliche Spaltennamen
+  const idx = {
+    brand:     findCol(headers, ['brand','marke','hersteller','manufacturer']),
+    material:  findCol(headers, ['material','type','typ']),
+    type:      findCol(headers, ['sub type','subtype','sub-type','variant','variante','finish']),
+    colorName: findCol(headers, ['color name','colorname','colour name','name','farbe','color','colour']),
+    colorHex:  findCol(headers, ['hex','color code','hex code','colour code','#','hex color']),
+    diameter:  findCol(headers, ['diameter','durchmesser','size','ø']),
+  };
+
+  const result = [];
+  for (let i = 1; i < lines.length; i++) {
+    const cols = lines[i].split('\t').map(c => c.trim());
+    if (cols.length < 2) continue;
+    const brand     = get(cols, idx.brand)     || '';
+    const material  = get(cols, idx.material)  || '';
+    const type      = get(cols, idx.type)      || '';
+    const colorName = get(cols, idx.colorName) || get(cols, 1) || '';
+    let   colorHex  = get(cols, idx.colorHex)  || '';
+
+    // Hex bereinigen
+    colorHex = colorHex.replace(/[^0-9a-fA-F#]/g,'');
+    if (colorHex && !colorHex.startsWith('#')) colorHex = '#' + colorHex;
+    if (colorHex.length !== 7) colorHex = '#888888';
+
+    if (!brand && !colorName) continue;
+    result.push({ brand, material, type, colorName, colorHex });
+  }
+  return result;
+}
+
+function findCol(headers, candidates) {
+  for (const c of candidates) {
+    const i = headers.findIndex(h => h.includes(c));
+    if (i !== -1) return i;
+  }
+  return -1;
+}
+function get(cols, idx) { return (idx >= 0 && idx < cols.length) ? cols[idx] : ''; }
+
+function renderImportPreview() {
+  const el  = document.getElementById('imp-preview');
+  const btn = document.getElementById('imp-confirm');
+  if (!parsedFilaments.length) {
+    el.innerHTML = `<p style="font-size:.78rem;color:var(--muted);margin-top:.5rem">Keine erkennbaren Daten. Stelle sicher dass die Tabelle tab-getrennt ist.</p>`;
+    btn.disabled = true;
+    return;
+  }
+  el.innerHTML = `<div class="imp-stats"><b>${parsedFilaments.length}</b> Filamente erkannt</div>
+    <div class="imp-preview">
+      ${parsedFilaments.map(f => `
+        <div class="imp-row">
+          <div class="imp-swatch" style="background:${esc(f.colorHex)}"></div>
+          <div class="imp-info">
+            <div class="imp-name">${esc(f.colorName || '—')}</div>
+            <div class="imp-meta">${esc(f.brand)} · ${esc(f.material)}${f.type?' '+esc(f.type):''}</div>
+          </div>
+        </div>`).join('')}
+    </div>`;
+  btn.disabled = false;
+  btn.textContent = `${parsedFilaments.length} importieren`;
 }
 
 // ── UTIL ──────────────────────────────────────────
