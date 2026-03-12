@@ -179,7 +179,7 @@
 <div class="topbar">
   <span class="topbar-logo">🚒</span>
   <span class="topbar-title">Ortswehr Import-Tool</span>
-  <span class="topbar-sub">FFW Beeskow · Löschzug Oegeln · v1.1.0</span>
+  <span class="topbar-sub">FFW Beeskow · Löschzug Oegeln · v1.2.0</span>
   <span id="auth-status" class="err">Nicht angemeldet</span>
 </div>
 
@@ -338,17 +338,17 @@
         <h2 style="margin-bottom:1.25rem;font-size:1.1rem">🔗 Teilnehmer zuordnen</h2>
         <div class="card">
           <h3>CSV einfügen</h3>
-          <div class="card-muted">Dienste oder Einsätze CSV einfügen. Das Tool ordnet die Teilnehmer den vorhandenen Einträgen zu und erstellt Anwesenheiten.</div>
+          <div class="card-muted">Erst Vorschau laden, dann einzelne Zeilen ggf. überspringen, dann importieren.</div>
           <label>Typ</label>
-          <select id="zuord-typ">
+          <select id="zuord-typ" onchange="zuordResetVorschau()">
             <option value="dienst">Dienste</option>
             <option value="einsaetze">Einsätze</option>
           </select>
           <label>CSV-Daten</label>
-          <textarea id="csv-zuordnen" rows="10" placeholder="Zeitstempel;Datum;Thema;Dauer;Teilnehmer"></textarea>
+          <textarea id="csv-zuordnen" rows="10" placeholder="Zeitstempel;Datum;Thema;Dauer;Teilnehmer" oninput="zuordResetVorschau()"></textarea>
           <div class="btn-row">
-            <button class="btn btn-ghost" onclick="vorschauZuordnen()">👁 Vorschau</button>
-            <button class="btn btn-red" onclick="starteZuordnen()" id="btn-zuordnen">🔗 Zuordnen starten</button>
+            <button class="btn btn-ghost" onclick="vorschauZuordnen()">👁 Vorschau laden</button>
+            <button class="btn btn-red" onclick="starteZuordnen()" id="btn-zuordnen" disabled title="Erst Vorschau laden">🔗 Markierte importieren</button>
           </div>
           <div id="prog-zuord" style="display:none;margin-top:0.75rem">
             <div class="progress-bar"><div class="progress-fill" id="prog-zuord-fill" style="width:0%"></div></div>
@@ -837,6 +837,13 @@ window.importiereCSV = async (typ) => {
   ladeStats();
 };
 
+// ── TEILNEHMER ZUORDNEN – Reset wenn CSV geändert ──
+window.zuordResetVorschau = () => {
+  document.getElementById('vorschau-zuordnen').innerHTML = '';
+  document.getElementById('btn-zuordnen').disabled = true;
+  window._zuordVorschauDaten = null;
+};
+
 // ── TEILNEHMER ZUORDNEN – Vorschau ──
 window.vorschauZuordnen = async () => {
   const typ  = document.getElementById('zuord-typ').value;
@@ -845,31 +852,148 @@ window.vorschauZuordnen = async () => {
 
   await ladeUsers();
   const rows = typ === 'einsaetze' ? parseEinsatzCSV(text) : parseCSV(text);
-  const col = typ === 'dienst' ? 'dienste' : 'einsaetze';
+  const col  = typ === 'dienst' ? 'dienste' : 'einsaetze';
 
-  // Einträge laden
+  log(`Lade ${col} aus Firestore...`, 'info');
   const colSnap = await getDocs(collection(db, col));
   const eintraege = colSnap.docs.map(d => ({id:d.id,...d.data()}));
 
-  let html = `<div class="card"><h3>Zuordnungs-Vorschau (${rows.length} Zeilen)</h3><table>
-    <thead><tr><th>Datum</th><th>Thema</th><th>Eintrag gefunden</th><th>Teilnehmer</th></tr></thead><tbody>`;
+  // Vorhandene Anwesenheiten laden für Duplikat-Markierung
+  const anwSnap = await getDocs(collection(db, 'anwesenheiten'));
+  const vorhandeneAnw = new Set(anwSnap.docs.map(d => d.data().uebungId + '_' + d.data().userId));
 
-  for (const r of rows) {
+  // Vorschau-Daten aufbauen
+  const vorschauZeilen = rows.map((r, idx) => {
     const eintrag = findEintrag(eintraege, r);
-    const teilStatus = r.teilnehmer.map(t => {
+    const eintragDatum = eintrag?.datum?.toDate?.()?.toLocaleDateString('de-DE') || '–';
+    const teilnehmer = r.teilnehmer.map(t => {
       const u = findUser(t.vorname, t.nachname);
-      return `<span class="pill ${u?'pill-green':'pill-red'}" style="margin:1px">${t.nachname}, ${t.vorname}</span>`;
-    }).join(' ');
-    html += `<tr>
-      <td class="mono">${r.datumStr}</td>
-      <td>${r.thema}</td>
-      <td>${eintrag ? `<span class="pill pill-green">✅ ${eintrag.titel}</span>` : '<span class="pill pill-red">❌ nicht gefunden</span>'}</td>
-      <td style="font-size:0.72rem">${teilStatus}</td>
-    </tr>`;
-  }
-  html += '</tbody></table></div>';
+      const duplikat = u && eintrag ? vorhandeneAnw.has(eintrag.id + '_' + u.id) : false;
+      return { ...t, user: u, duplikat };
+    });
+    return { idx, row: r, eintrag, eintragDatum, teilnehmer, ueberspringen: !eintrag };
+  });
+
+  window._zuordVorschauDaten = vorschauZeilen;
+
+  // Statistik
+  const gefunden    = vorschauZeilen.filter(z => z.eintrag).length;
+  const nichtGef    = vorschauZeilen.filter(z => !z.eintrag).length;
+  const userFehler  = vorschauZeilen.flatMap(z => z.teilnehmer).filter(t => !t.user).length;
+  const duplikate   = vorschauZeilen.flatMap(z => z.teilnehmer).filter(t => t.duplikat).length;
+
+  log(`Vorschau: ${rows.length} Zeilen · ${gefunden} Einträge gefunden · ${nichtGef} nicht gefunden · ${userFehler} unbekannte User · ${duplikate} bereits vorhanden`, gefunden > 0 ? 'ok' : 'warn');
+
+  // Tabelle rendern
+  const html = `
+    <div class="card">
+      <h3 style="margin-bottom:0.5rem">Vorschau – ${rows.length} Zeilen
+        <span style="font-size:0.75rem;font-weight:400;color:var(--muted);margin-left:0.5rem">${gefunden} zuordenbar · ${nichtGef} nicht gefunden</span>
+      </h3>
+      <div style="font-size:0.78rem;color:var(--muted);margin-bottom:0.75rem">
+        ☑ = wird importiert &nbsp;·&nbsp; Zeile deaktivieren = überspringen &nbsp;·&nbsp;
+        <span style="color:#f59e0b">●</span> nicht gefunden &nbsp;·&nbsp;
+        <span style="color:#3b82f6">●</span> bereits vorhanden (Duplikat)
+      </div>
+      <div style="font-size:0.78rem;margin-bottom:0.5rem">
+        <button class="btn btn-ghost" style="padding:0.2rem 0.6rem;font-size:0.75rem" onclick="zuordAlleWaehlen(true)">Alle aktivieren</button>
+        <button class="btn btn-ghost" style="padding:0.2rem 0.6rem;font-size:0.75rem;margin-left:0.3rem" onclick="zuordAlleWaehlen(false)">Alle deaktivieren</button>
+      </div>
+      <table>
+        <thead><tr>
+          <th style="width:32px">✓</th>
+          <th>CSV-Datum</th>
+          <th>CSV-Thema</th>
+          <th>→ Gefundener Eintrag</th>
+          <th>Teilnehmer</th>
+        </tr></thead>
+        <tbody>
+          ${vorschauZeilen.map(z => {
+            const aktiv = !z.ueberspringen;
+            const teilHtml = z.teilnehmer.map(t => {
+              if (!t.user) return `<span class="pill pill-red" style="margin:1px">${t.nachname}, ${t.vorname}</span>`;
+              if (t.duplikat) return `<span class="pill pill-blue" style="margin:1px" title="bereits vorhanden">${t.nachname}, ${t.vorname.charAt(0)}.</span>`;
+              return `<span class="pill pill-green" style="margin:1px">${t.nachname}, ${t.vorname.charAt(0)}.</span>`;
+            }).join('');
+            const eintragHtml = z.eintrag
+              ? `<span class="pill pill-green">✅ ${z.eintrag.titel}</span> <span style="font-size:0.7rem;color:var(--muted)">${z.eintragDatum}</span>`
+              : `<span class="pill pill-yellow">⚠️ nicht gefunden</span>`;
+            return `<tr style="opacity:${aktiv?1:0.4}" id="zuord-row-${z.idx}">
+              <td><input type="checkbox" ${aktiv?'checked':''} onchange="zuordToggle(${z.idx}, this.checked)"></td>
+              <td class="mono" style="white-space:nowrap">${z.row.datumStr}</td>
+              <td style="font-size:0.8rem">${z.row.thema}</td>
+              <td style="font-size:0.8rem">${eintragHtml}</td>
+              <td style="font-size:0.72rem">${teilHtml}</td>
+            </tr>`;
+          }).join('')}
+        </tbody>
+      </table>
+    </div>`;
+
   document.getElementById('vorschau-zuordnen').innerHTML = html;
-  log(`Vorschau: ${rows.length} Zeilen`, 'info');
+  document.getElementById('btn-zuordnen').disabled = false;
+};
+
+window.zuordToggle = (idx, aktiv) => {
+  if (!window._zuordVorschauDaten) return;
+  window._zuordVorschauDaten[idx].ueberspringen = !aktiv;
+  const row = document.getElementById('zuord-row-' + idx);
+  if (row) row.style.opacity = aktiv ? '1' : '0.4';
+};
+
+window.zuordAlleWaehlen = (aktiv) => {
+  if (!window._zuordVorschauDaten) return;
+  window._zuordVorschauDaten.forEach(z => z.ueberspringen = !aktiv);
+  document.querySelectorAll('#vorschau-zuordnen input[type=checkbox]').forEach(cb => cb.checked = aktiv);
+  document.querySelectorAll('#vorschau-zuordnen tbody tr').forEach(tr => tr.style.opacity = aktiv ? '1' : '0.4');
+};
+
+// ── TEILNEHMER ZUORDNEN – Ausführen ──
+window.starteZuordnen = async () => {
+  if (!window._zuordVorschauDaten?.length) { log('Bitte zuerst Vorschau laden', 'warn'); return; }
+
+  const typ  = document.getElementById('zuord-typ').value;
+
+  // Vorhandene Anwesenheiten nochmals frisch laden (könnte sich geändert haben)
+  const anwSnap = await getDocs(collection(db, 'anwesenheiten'));
+  const vorhandeneAnw = new Set(anwSnap.docs.map(d => d.data().uebungId + '_' + d.data().userId));
+
+  const zuVerarbeiten = window._zuordVorschauDaten.filter(z => !z.ueberspringen && z.eintrag);
+  log(`Starte Import: ${zuVerarbeiten.length} Zeilen (${window._zuordVorschauDaten.filter(z=>z.ueberspringen).length} übersprungen)`, 'head');
+
+  document.getElementById('btn-zuordnen').disabled = true;
+  document.getElementById('prog-zuord').style.display = 'block';
+
+  let gesamt = 0, skip = 0, fehler = 0;
+
+  for (let i = 0; i < zuVerarbeiten.length; i++) {
+    const z = zuVerarbeiten[i];
+    for (const t of z.teilnehmer) {
+      if (!t.user) { log(`⚠️ User nicht gefunden: ${t.nachname}, ${t.vorname}`, 'warn'); fehler++; continue; }
+      const anwKey = z.eintrag.id + '_' + t.user.id;
+      if (vorhandeneAnw.has(anwKey)) { skip++; continue; }
+      await addDoc(collection(db, 'anwesenheiten'), {
+        uebungId: z.eintrag.id,
+        userId:   t.user.id,
+        userName: t.user.nachname + ', ' + t.user.vorname.charAt(0) + '.',
+        typ, status: 'kommt',
+        datum: z.eintrag.datum,
+        dauer_h: z.eintrag.dauer_h || z.row.dauer_h,
+        gemeldetAm: Timestamp.now(),
+        bestaetigtAm: Timestamp.now(),
+      });
+      vorhandeneAnw.add(anwKey);
+      gesamt++;
+    }
+    const pct = Math.round((i+1)/zuVerarbeiten.length*100);
+    document.getElementById('prog-zuord-fill').style.width = pct + '%';
+    document.getElementById('prog-zuord-text').textContent = `${i+1} / ${zuVerarbeiten.length} Zeilen verarbeitet`;
+  }
+
+  log(`✅ Fertig: ${gesamt} Anwesenheiten erstellt · ${skip} Duplikate übersprungen · ${fehler} Fehler`, gesamt > 0 ? 'ok' : 'warn');
+  document.getElementById('btn-zuordnen').disabled = false;
+  window._zuordVorschauDaten = null;
+  ladeStats();
 };
 
 function findEintrag(eintraege, row) {
@@ -926,70 +1050,6 @@ window.fixAnwesenheitStatus = async () => {
   }
 };
 
-// ── TEILNEHMER ZUORDNEN – Ausführen ──
-window.starteZuordnen = async () => {
-  const text = document.getElementById('csv-zuordnen').value;
-  const typ  = document.getElementById('zuord-typ').value;
-  if (!text.trim()) { log('Kein CSV eingegeben', 'warn'); return; }
-
-  await ladeUsers();
-  const rows = typ === 'einsaetze' ? parseEinsatzCSV(text) : parseCSV(text);
-  const col  = typ === 'dienst' ? 'dienste' : 'einsaetze';
-  const colSnap = await getDocs(collection(db, col));
-  const eintraege = colSnap.docs.map(d => ({id:d.id,...d.data()}));
-
-  // Vorhandene Anwesenheiten laden
-  const anwSnap = await getDocs(collection(db, 'anwesenheiten'));
-  const vorhandenesAnw = new Set(anwSnap.docs.map(d => d.data().uebungId + '_' + d.data().userId));
-
-  log(`Starte Zuordnung für ${rows.length} Einträge...`, 'head');
-  document.getElementById('btn-zuordnen').disabled = true;
-  document.getElementById('prog-zuord').style.display = 'block';
-
-  let gesamt = 0, skip = 0, fehler = 0;
-
-  for (let i = 0; i < rows.length; i++) {
-    const r = rows[i];
-    const eintrag = findEintrag(eintraege, r);
-    if (!eintrag) {
-      log(`❌ Kein Eintrag für: ${r.thema} am ${r.datumStr}`, 'warn');
-      fehler++;
-    } else {
-      for (const t of r.teilnehmer) {
-        const user = findUser(t.vorname, t.nachname);
-        if (!user) {
-          log(`⚠️ User nicht gefunden: ${t.nachname}, ${t.vorname}`, 'warn');
-          fehler++;
-          continue;
-        }
-        const anwKey = eintrag.id + '_' + user.id;
-        if (vorhandenesAnw.has(anwKey)) {
-          skip++;
-          continue;
-        }
-        await addDoc(collection(db, 'anwesenheiten'), {
-          uebungId: eintrag.id,
-          userId:   user.id,
-          userName: user.nachname + ', ' + user.vorname.charAt(0) + '.',
-          typ, status: 'kommt',
-          datum: eintrag.datum,
-          dauer_h: eintrag.dauer_h || r.dauer_h,
-          gemeldetAm: Timestamp.now(),
-          bestaetigtAm: Timestamp.now(),
-        });
-        vorhandenesAnw.add(anwKey);
-        gesamt++;
-      }
-    }
-    const pct = Math.round((i+1)/rows.length*100);
-    document.getElementById('prog-zuord-fill').style.width = pct + '%';
-    document.getElementById('prog-zuord-text').textContent = `${i+1} / ${rows.length} Zeilen verarbeitet`;
-  }
-
-  log(`Zuordnung fertig: ${gesamt} Anwesenheiten erstellt, ${skip} Duplikate, ${fehler} Fehler`, gesamt > 0 ? 'ok' : 'warn');
-  document.getElementById('btn-zuordnen').disabled = false;
-  ladeStats();
-};
 
 // ── Lehrgangs-Import ──────────────────────────────────────
 
