@@ -17,14 +17,19 @@ messaging.onBackgroundMessage(payload => {
   const alarm = payload.data?.alarm === 'true';
   const title = payload.notification?.title || '🚒 Ortswehr';
   const body  = payload.notification?.body  || '';
-  return self.registration.showNotification(title, {
-    body,
-    icon:    '/ortswehr/icons/icon-192.png',
-    badge:   '/ortswehr/icons/icon-192.png',
-    tag:     alarm ? 'einsatz' : 'allgemein',
-    vibrate: alarm ? [200,100,200,100,200,100,400] : [200,100,200],
-    requireInteraction: alarm,
-    data:    { url: 'https://ob3s.github.io/ortswehr/' },
+  // Nicht anzeigen wenn App bereits im Vordergrund (onMessage übernimmt dann)
+  return self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(clients => {
+    const appOffen = clients.some(c => c.url.includes('ob3s.github.io') && c.visibilityState === 'visible');
+    if (appOffen) return;
+    return self.registration.showNotification(title, {
+      body,
+      icon:    '/ortswehr/icons/icon-192.png',
+      badge:   '/ortswehr/icons/icon-192.png',
+      tag:     alarm ? 'einsatz' : 'allgemein',
+      vibrate: alarm ? [200,100,200,100,200,100,400] : [200,100,200],
+      requireInteraction: alarm,
+      data:    { url: 'https://ob3s.github.io/ortswehr/' },
+    });
   });
 });
 
