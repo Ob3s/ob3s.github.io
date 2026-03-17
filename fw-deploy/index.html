@@ -24,6 +24,7 @@
     --green:  #22c55e;
     --yellow: #f59e0b;
     --blue:   #3b82f6;
+    --orange: #f97316;
     --mono:   'JetBrains Mono', monospace;
     --sans:   'IBM Plex Sans', sans-serif;
   }
@@ -34,7 +35,6 @@
     overflow: hidden;
   }
 
-  /* ── Shell ── */
   .shell { display: flex; flex-direction: column; height: 100%; }
 
   header {
@@ -51,7 +51,6 @@
 
   main { flex: 1; overflow-y: auto; padding: 1rem; -webkit-overflow-scrolling: touch; }
 
-  /* ── Cards ── */
   .card {
     background: var(--panel); border: 1px solid var(--border);
     border-radius: 12px; padding: 1.1rem; margin-bottom: 0.9rem;
@@ -59,21 +58,42 @@
   .card h2 { font-size: 0.9rem; font-weight: 600; margin-bottom: 0.6rem; display: flex; align-items: center; gap: 0.4rem; }
   .card-sub { font-size: 0.78rem; color: var(--muted); margin-bottom: 0.75rem; line-height: 1.5; }
 
-  /* ── Drop Zone ── */
+  /* ── Environment Toggle ── */
+  .env-toggle {
+    display: flex; gap: 0; border-radius: 10px; overflow: hidden;
+    border: 1px solid var(--border); margin-bottom: 0.9rem;
+  }
+  .env-btn {
+    flex: 1; padding: 0.7rem; border: none; cursor: pointer;
+    font-family: var(--sans); font-size: 0.9rem; font-weight: 600;
+    transition: background 0.15s, color 0.15s;
+    background: var(--panel2); color: var(--muted);
+  }
+  .env-btn.aktiv-dev  { background: var(--orange); color: #fff; }
+  .env-btn.aktiv-prod { background: var(--green);  color: #000; }
+
+  /* ── Environment Banner ── */
+  #env-banner {
+    border-radius: 10px; padding: 0.6rem 0.9rem; margin-bottom: 0.9rem;
+    font-size: 0.82rem; font-weight: 600; text-align: center;
+    display: none;
+  }
+  #env-banner.dev  { background: rgba(249,115,22,0.15); color: var(--orange); border: 1px solid rgba(249,115,22,0.3); }
+  #env-banner.prod { background: rgba(34,197,94,0.12);  color: var(--green);  border: 1px solid rgba(34,197,94,0.3); }
+
   .dropzone {
     border: 2px dashed var(--border); border-radius: 10px;
     padding: 2rem 1rem; text-align: center; cursor: pointer;
     transition: all 0.2s; margin-bottom: 0.75rem;
     background: var(--panel2);
   }
-  .dropzone.drag { border-color: var(--red); background: rgba(204,34,0,0.08); }
+  .dropzone.drag  { border-color: var(--red);   background: rgba(204,34,0,0.08); }
   .dropzone.ready { border-color: var(--green); background: rgba(34,197,94,0.06); }
   .dropzone-icon { font-size: 2rem; margin-bottom: 0.5rem; }
   .dropzone-text { font-size: 0.85rem; color: var(--muted); }
   .dropzone-file { font-size: 0.85rem; color: var(--green); font-family: var(--mono); margin-top: 0.3rem; }
   #file-input { display: none; }
 
-  /* ── Buttons ── */
   .btn {
     display: flex; align-items: center; justify-content: center; gap: 0.4rem;
     width: 100%; padding: 0.8rem; border-radius: 10px; border: none;
@@ -84,27 +104,20 @@
   }
   .btn:active { transform: scale(0.97); opacity: 0.85; }
   .btn:disabled { opacity: 0.35; cursor: not-allowed; transform: none; }
-  .btn-red   { background: var(--red);   color: #fff; }
-  .btn-ghost { background: var(--panel2); color: var(--text); border: 1px solid var(--border); }
+  .btn-red    { background: var(--red);    color: #fff; }
+  .btn-orange { background: var(--orange); color: #fff; }
+  .btn-green  { background: var(--green);  color: #000; }
+  .btn-ghost  { background: var(--panel2); color: var(--text); border: 1px solid var(--border); }
 
-  /* ── Progress ── */
   .progress-wrap { margin: 0.75rem 0; display: none; }
-  .progress-bar { background: var(--border); border-radius: 4px; height: 8px; overflow: hidden; }
+  .progress-bar  { background: var(--border); border-radius: 4px; height: 8px; overflow: hidden; }
   .progress-fill { height: 100%; background: var(--red); border-radius: 4px; transition: width 0.25s; }
   .progress-text { font-size: 0.75rem; color: var(--muted); margin-top: 0.4rem; font-family: var(--mono); }
 
-  /* ── Log ── */
-  .log-wrap {
-    background: var(--panel2); border: 1px solid var(--border);
-    border-radius: 10px; overflow: hidden; margin-top: 0.75rem;
-  }
-  .log-header {
-    padding: 0.5rem 0.75rem; border-bottom: 1px solid var(--border);
-    font-size: 0.7rem; font-weight: 600; color: var(--muted);
-    display: flex; align-items: center; justify-content: space-between;
-  }
-  .log-body { padding: 0.5rem; max-height: 220px; overflow-y: auto; font-family: var(--mono); font-size: 0.7rem; }
-  .log-entry { padding: 0.15rem 0.25rem; border-radius: 3px; line-height: 1.6; }
+  .log-wrap { background: var(--panel2); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; margin-top: 0.75rem; }
+  .log-header { padding: 0.5rem 0.75rem; border-bottom: 1px solid var(--border); font-size: 0.7rem; font-weight: 600; color: var(--muted); display: flex; align-items: center; justify-content: space-between; }
+  .log-body   { padding: 0.5rem; max-height: 220px; overflow-y: auto; font-family: var(--mono); font-size: 0.7rem; }
+  .log-entry  { padding: 0.15rem 0.25rem; border-radius: 3px; line-height: 1.6; }
   .log-entry.ok    { color: var(--green); }
   .log-entry.warn  { color: var(--yellow); }
   .log-entry.error { color: #f87171; }
@@ -112,7 +125,6 @@
   .log-entry.head  { color: var(--blue); font-weight: 600; margin-top: 0.25rem; }
   .log-clear { background: none; border: none; color: var(--muted); cursor: pointer; font-size: 0.7rem; }
 
-  /* ── Settings ── */
   label { display: block; font-size: 0.7rem; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.3rem; }
   input {
     width: 100%; background: var(--panel2); border: 1px solid var(--border);
@@ -121,15 +133,11 @@
   }
   input:focus { outline: none; border-color: var(--red); }
 
-  /* ── Status Chips ── */
   .chip-row { display: flex; gap: 0.4rem; flex-wrap: wrap; margin-bottom: 0.5rem; }
   .chip { padding: 0.2rem 0.6rem; border-radius: 20px; font-size: 0.68rem; font-weight: 600; }
   .chip-green  { background: #14532d; color: var(--green); }
-  .chip-red    { background: #450a0a; color: #f87171; }
-  .chip-yellow { background: #451a03; color: var(--yellow); }
   .chip-gray   { background: var(--panel2); color: var(--muted); border: 1px solid var(--border); }
 
-  /* ── Result ── */
   .result-ok {
     background: #14532d; border: 1px solid #166534; border-radius: 10px;
     padding: 1rem; text-align: center; margin-top: 0.75rem;
@@ -140,20 +148,15 @@
   ::-webkit-scrollbar { width: 4px; }
   ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
 
-  /* Update-Banner */
   #update-banner {
-    display: none;
     background: #1e3a5f; border-bottom: 1px solid var(--blue);
-    padding: 0.6rem 1rem;
-    display: none; align-items: center; gap: 0.75rem;
-    font-size: 0.82rem;
+    padding: 0.6rem 1rem; display: none; align-items: center; gap: 0.75rem; font-size: 0.82rem;
   }
   #update-banner.show { display: flex; }
   #update-btn {
     margin-left: auto; background: var(--blue); color: #fff;
     border: none; border-radius: 6px; padding: 0.35rem 0.8rem;
-    font-size: 0.78rem; font-weight: 600; cursor: pointer;
-    white-space: nowrap;
+    font-size: 0.78rem; font-weight: 600; cursor: pointer; white-space: nowrap;
   }
 </style>
 </head>
@@ -163,7 +166,7 @@
   <header>
     <span class="logo">🚒</span>
     <h1>Ortswehr Deploy</h1>
-    <span class="version" id="hdr-version" style="opacity:0.6">v2.2</span>
+    <span class="version" id="hdr-version" style="opacity:0.6">v2.3</span>
     <span class="version" id="hdr-status">bereit</span>
   </header>
 
@@ -174,6 +177,13 @@
 
   <main>
 
+    <!-- Environment Toggle -->
+    <div class="env-toggle">
+      <button class="env-btn aktiv-dev" id="btn-dev"  onclick="setEnv('dev')">🧪 DEV</button>
+      <button class="env-btn"           id="btn-prod" onclick="setEnv('prod')">🚀 PROD</button>
+    </div>
+    <div id="env-banner" class="dev">🧪 DEV – Änderungen gehen nur an die Test-Umgebung</div>
+
     <!-- Settings -->
     <div class="card" id="settings-card">
       <h2>⚙️ Einstellungen</h2>
@@ -181,8 +191,10 @@
       <input type="password" id="gh-token" placeholder="ghp_..." autocomplete="off">
       <div style="display:flex;gap:0.5rem">
         <div style="flex:1"><label>User</label><input id="gh-user" value="Ob3s"></div>
-        <div style="flex:1"><label>Repo Ortswehr</label><input id="gh-repo1" value="ortswehr"></div>
+        <div style="flex:1"><label>Repo PROD</label><input id="gh-repo1" value="ortswehr"></div>
       </div>
+      <label>Repo DEV</label>
+      <input id="gh-repo1-dev" value="ortswehr-dev" placeholder="ortswehr-dev">
       <label>Root-Repo (firebase-messaging-sw.js)</label>
       <input id="gh-repo2" value="ob3s.github.io">
       <button class="btn btn-ghost" onclick="speichereSettings()" style="margin-top:0">💾 Speichern</button>
@@ -191,7 +203,7 @@
     <!-- Deploy -->
     <div class="card">
       <h2>📦 Update deployen</h2>
-      <div class="card-sub">ZIP-Datei aus dem Chat hier reinwerfen oder antippen.</div>
+      <div class="card-sub">JSON-Datei aus dem Chat hier reinwerfen oder antippen.</div>
 
       <div class="dropzone" id="dropzone" onclick="document.getElementById('file-input').click()">
         <div class="dropzone-icon">📂</div>
@@ -207,7 +219,7 @@
         <div class="progress-text" id="prog-text">Vorbereitung...</div>
       </div>
 
-      <button class="btn btn-red" id="btn-deploy" onclick="startDeploy()" disabled>
+      <button class="btn btn-orange" id="btn-deploy" onclick="startDeploy()" disabled>
         🚀 Deployen
       </button>
 
@@ -217,7 +229,6 @@
         <span id="result-detail" style="font-size:0.78rem;opacity:0.8"></span>
       </div>
 
-      <!-- Changelog -->
       <div id="changelog-box" style="display:none;background:var(--panel2);border:1px solid var(--border);border-radius:10px;padding:1rem;margin-top:0.75rem"></div>
     </div>
 
@@ -233,127 +244,59 @@
   </main>
 </div>
 
-<!-- JSZip -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <script>
-// ── Changelog ──
-const CHANGELOG = {
-  '2.1.1': {
-    datum: '09.03.2026',
-    punkte: [
-      'Kalender-Import: Änderungen werden jetzt aktualisiert (Titel, Ort, Zeit)',
-      'Zusagen/Anwesenheiten bleiben bei Re-Import erhalten',
-      'Import zeigt: neu · aktualisiert · unverändert',
-    ]
-  },
-  '2.1.0': {
-    datum: '09.03.2026',
-    punkte: [
-      'Ort in Dienste-Liste als eigene Zeile mit 📍',
-    ]
-  },
-  '2.0.9': {
-    datum: '09.03.2026',
-    punkte: [
-      'Startseite: chronologisch nächster Dienst immer oben',
-      'Oegeln-Logik: 2. Karte nur wenn nächster Dienst woanders ist',
-    ]
-  },
-  '2.0.8': {
-    datum: '09.03.2026',
-    punkte: [
-      'Zweites Design "Klassisch" (MP-FEUER-Stil)',
-      'Design-Auswahl im Profil, wird gespeichert',
-    ]
-  },
-  '2.0.7': {
-    datum: '09.03.2026',
-    punkte: [
-      'Abstimmungen: Live-Updates via onSnapshot',
-      'Radio-Button-Style – Optionen direkt anklickbar',
-      'Ergebnisbalken erst nach eigener Stimmabgabe sichtbar',
-    ]
-  },
-  '2.0.6': {
-    datum: '09.03.2026',
-    punkte: [
-      'Dienst-Sichtbarkeit: AGT, Maschinist, Führungskräfte-Filter',
-      'Startseite: Oegeln-Logik für nächste Dienste',
-      'Debug-Logging entfernt',
-    ]
-  },
-  '2.0.5': {
-    datum: '09.03.2026',
-    punkte: [
-      'Stats-Kacheln von Startseite entfernt',
-      'Neuigkeiten immer sichtbar, "Noch keine Neuigkeiten" wenn leer',
-      '⏳ gelb = keine Reaktion, ✅ grün = kommt, ❌ rot = kommt nicht',
-      'SyntaxError in News-Button behoben',
-    ]
-  },
-  '2.0.4': {
-    datum: '09.03.2026',
-    punkte: [
-      'Hotfix: SyntaxError in navigate(news-form)',
-    ]
-  },
-  '2.0.3': {
-    datum: '09.03.2026',
-    punkte: [
-      'Uhr im Header (sekundengenau)',
-      'Abstimmungen: Namen sichtbar, Stimme änderbar',
-      'Alarm-Button wieder voll breit',
-    ]
-  },
-};
 
-function zeigeChangelog(version, punkte) {
-  const el = document.getElementById('changelog-box');
-  if (!el) return;
-  // Erst aus changes.json (live), dann aus hardcoded CHANGELOG
-  const livePunkte = punkte || null;
-  const eintrag = CHANGELOG[version];
-  const anzeigeP = livePunkte || eintrag?.punkte;
-  const datum = eintrag?.datum || new Date().toLocaleDateString('de-DE');
+// ── Environment ──────────────────────────────────────────
+let _env = localStorage.getItem('deploy_env') || 'dev';
 
-  if (!anzeigeP?.length) {
-    el.innerHTML = '<div style="font-size:0.78rem;color:var(--muted)">Keine Changelog-Einträge für v' + version + '</div>';
-    el.style.display = 'block';
-    return;
+function setEnv(env) {
+  _env = env;
+  localStorage.setItem('deploy_env', env);
+  document.getElementById('btn-dev').className  = 'env-btn' + (env === 'dev'  ? ' aktiv-dev'  : '');
+  document.getElementById('btn-prod').className = 'env-btn' + (env === 'prod' ? ' aktiv-prod' : '');
+  const banner = document.getElementById('env-banner');
+  const deployBtn = document.getElementById('btn-deploy');
+  if (env === 'dev') {
+    banner.className = 'dev';
+    banner.textContent = '🧪 DEV – Änderungen gehen nur an die Test-Umgebung';
+    banner.style.display = 'block';
+    deployBtn.className = 'btn btn-orange';
+  } else {
+    banner.className = 'prod';
+    banner.textContent = '🚀 PROD – Änderungen gehen an alle Kameraden!';
+    banner.style.display = 'block';
+    deployBtn.className = 'btn btn-green';
   }
-  el.innerHTML = `
-    <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.6rem">
-      <span style="font-family:var(--mono);font-size:0.8rem;background:#1e3a5f;color:var(--blue);padding:0.2rem 0.6rem;border-radius:20px">v${version}</span>
-      <span style="font-size:0.72rem;color:var(--muted)">${datum}</span>
-      ${livePunkte ? '<span style="font-size:0.68rem;background:#14532d;color:var(--green);padding:0.1rem 0.4rem;border-radius:10px">live</span>' : ''}
-    </div>
-    <ul style="list-style:none;padding:0">
-      ${anzeigeP.map(p => `<li style="font-size:0.8rem;padding:0.25rem 0;border-bottom:1px solid var(--border);display:flex;gap:0.5rem"><span style="color:var(--green);flex-shrink:0">▸</span>${p}</li>`).join('')}
-    </ul>`;
-  el.style.display = 'block';
+  document.getElementById('hdr-status').textContent = env.toUpperCase();
+  log('Umgebung: ' + env.toUpperCase(), env === 'prod' ? 'warn' : 'info');
 }
 
-// ── Settings ──
+// ── Settings ─────────────────────────────────────────────
 function ladeSettings() {
-  document.getElementById('gh-token').value = localStorage.getItem('gh_token') || '';
-  document.getElementById('gh-user').value  = localStorage.getItem('gh_user')  || 'Ob3s';
-  document.getElementById('gh-repo1').value = localStorage.getItem('gh_repo1') || 'ortswehr';
-  document.getElementById('gh-repo2').value = localStorage.getItem('gh_repo2') || 'ob3s.github.io';
+  document.getElementById('gh-token').value    = localStorage.getItem('gh_token')    || '';
+  document.getElementById('gh-user').value     = localStorage.getItem('gh_user')     || 'Ob3s';
+  document.getElementById('gh-repo1').value    = localStorage.getItem('gh_repo1')    || 'ortswehr';
+  document.getElementById('gh-repo1-dev').value= localStorage.getItem('gh_repo1_dev')|| 'ortswehr-dev';
+  document.getElementById('gh-repo2').value    = localStorage.getItem('gh_repo2')    || 'ob3s.github.io';
   if (localStorage.getItem('gh_token')) {
     document.getElementById('settings-card').style.display = 'none';
     log('Token geladen ✅', 'ok');
   }
+  setEnv(_env);
 }
+
 function speichereSettings() {
-  localStorage.setItem('gh_token', document.getElementById('gh-token').value.trim());
-  localStorage.setItem('gh_user',  document.getElementById('gh-user').value.trim());
-  localStorage.setItem('gh_repo1', document.getElementById('gh-repo1').value.trim());
-  localStorage.setItem('gh_repo2', document.getElementById('gh-repo2').value.trim());
+  localStorage.setItem('gh_token',     document.getElementById('gh-token').value.trim());
+  localStorage.setItem('gh_user',      document.getElementById('gh-user').value.trim());
+  localStorage.setItem('gh_repo1',     document.getElementById('gh-repo1').value.trim());
+  localStorage.setItem('gh_repo1_dev', document.getElementById('gh-repo1-dev').value.trim());
+  localStorage.setItem('gh_repo2',     document.getElementById('gh-repo2').value.trim());
   document.getElementById('settings-card').style.display = 'none';
   log('Einstellungen gespeichert ✅', 'ok');
 }
 
-// ── Log ──
+// ── Log ──────────────────────────────────────────────────
 function log(msg, type='info') {
   const el = document.getElementById('log-body');
   const d  = document.createElement('div');
@@ -365,39 +308,44 @@ function log(msg, type='info') {
 }
 function clearLog() { document.getElementById('log-body').innerHTML = ''; }
 
-// ── Datei-Mapping: welche Datei kommt aus dem ZIP in welches Repo/Pfad ──
+// ── Datei-Mapping ─────────────────────────────────────────
 const REPO_MAP = {
-  // ortswehr-Repo
-  'index.html':        { repo: 'repo1', path: 'index.html' },
-  'version.json':      { repo: 'repo1', path: 'version.json' },
-  'changes.json':      { repo: 'repo1', path: 'changes.json' },
-  'sw.js':              { repo: 'repo1', path: 'sw.js' },
-  'js/pages.js':       { repo: 'repo1', path: 'js/pages.js' },
-  'css/style.css':     { repo: 'repo1', path: 'css/style.css' },
-  // ob3s.github.io-Repo
+  'index.html':               { repo: 'repo1', path: 'index.html' },
+  'version.json':             { repo: 'repo1', path: 'version.json' },
+  'changes.json':             { repo: 'repo1', path: 'changes.json' },
+  'sw.js':                    { repo: 'repo1', path: 'sw.js' },
+  'js/pages.js':              { repo: 'repo1', path: 'js/pages.js' },
+  'css/style.css':            { repo: 'repo1', path: 'css/style.css' },
   'firebase-messaging-sw.js': { repo: 'repo2', path: 'firebase-messaging-sw.js' },
 };
 
-// ── Drag & Drop & File Input ──
-let _files = {}; // { zipPath: { repo, path, content (base64) } }
+let _files = {};
 let _detectedVersion = '';
 let _detectedChanges = null;
-let _zipName = '';
 
+// ── Changelog ────────────────────────────────────────────
+function zeigeChangelog(version, punkte) {
+  const el = document.getElementById('changelog-box');
+  if (!el || !punkte?.length) return;
+  el.innerHTML = `
+    <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.6rem">
+      <span style="font-family:var(--mono);font-size:0.8rem;background:#1e3a5f;color:var(--blue);padding:0.2rem 0.6rem;border-radius:20px">v${version}</span>
+      <span style="font-size:0.68rem;background:#14532d;color:var(--green);padding:0.1rem 0.4rem;border-radius:10px">live</span>
+    </div>
+    <ul style="list-style:none;padding:0">
+      ${punkte.map(p => `<li style="font-size:0.8rem;padding:0.25rem 0;border-bottom:1px solid var(--border);display:flex;gap:0.5rem"><span style="color:var(--green);flex-shrink:0">▸</span>${p}</li>`).join('')}
+    </ul>`;
+  el.style.display = 'block';
+}
+
+// ── Drag & Drop ──────────────────────────────────────────
 const dz = document.getElementById('dropzone');
 dz.addEventListener('dragover',  e => { e.preventDefault(); dz.classList.add('drag'); });
 dz.addEventListener('dragleave', () => dz.classList.remove('drag'));
-dz.addEventListener('drop', e => {
-  e.preventDefault(); dz.classList.remove('drag');
-  const f = e.dataTransfer.files[0];
-  if (f) verarbeiteZip(f);
-});
-document.getElementById('file-input').addEventListener('change', e => {
-  if (e.target.files[0]) verarbeiteZip(e.target.files[0]);
-});
+dz.addEventListener('drop', e => { e.preventDefault(); dz.classList.remove('drag'); if (e.dataTransfer.files[0]) verarbeiteZip(e.dataTransfer.files[0]); });
+document.getElementById('file-input').addEventListener('change', e => { if (e.target.files[0]) verarbeiteZip(e.target.files[0]); });
 
 async function verarbeiteZip(file) {
-  _zipName = file.name;
   _detectedVersion = ''; _detectedChanges = null;
   document.getElementById('changelog-box').style.display = 'none';
   document.getElementById('file-name').textContent = file.name;
@@ -406,253 +354,150 @@ async function verarbeiteZip(file) {
 
   try {
     if (file.size === 0) throw new Error('Datei ist leer');
-    log('Dateigröße: ' + (file.size/1024).toFixed(1) + ' KB · Typ: ' + (file.type||'unbekannt'), 'info');
 
-    // JSON-Bundle: zuverlässigstes Verfahren für Android WebView
     const isJson = file.name.endsWith('.json') || file.type === 'application/json' || file.type === '';
     if (isJson) {
       let text = null;
       const istNull = t => !t || t.charCodeAt(0) === 0;
 
-      // 1. Response-API (zuverlässigste Methode auf Android)
-      try {
-        const t = await new Response(file).text();
-        if (!istNull(t)) text = t;
-      } catch(e) {}
-
-      // 2. file.text()
-      if (istNull(text) && typeof file.text === 'function') {
-        try {
-          const t = await file.text();
-          if (!istNull(t)) text = t;
-        } catch(e) {}
-      }
-
-      // 3. FileReader readAsDataURL → base64 → decode (Android Fallback)
+      try { const t = await new Response(file).text(); if (!istNull(t)) text = t; } catch(e) {}
+      if (istNull(text) && typeof file.text === 'function') { try { const t = await file.text(); if (!istNull(t)) text = t; } catch(e) {} }
       if (istNull(text)) {
         try {
-          const dataUrl = await new Promise((res, rej) => {
-            const r = new FileReader();
-            r.onload = e => res(e.target.result);
-            r.onerror = rej;
-            r.readAsDataURL(file);
-          });
-          // dataUrl = "data:application/json;base64,..."
-          const b64 = dataUrl.split(',')[1];
-          text = decodeURIComponent(escape(atob(b64)));
+          const dataUrl = await new Promise((res, rej) => { const r = new FileReader(); r.onload = e => res(e.target.result); r.onerror = rej; r.readAsDataURL(file); });
+          text = decodeURIComponent(escape(atob(dataUrl.split(',')[1])));
         } catch(e) {}
       }
-
-      // 4. FileReader readAsText
-      if (istNull(text)) {
-        try {
-          text = await new Promise((res, rej) => {
-            const r = new FileReader();
-            r.onload = e => res(e.target.result);
-            r.onerror = rej;
-            r.readAsText(file, 'utf-8');
-          });
-        } catch(e) {}
-      }
-
-      if (istNull(text)) throw new Error('Datei konnte nicht gelesen werden (alle Methoden fehlgeschlagen)');
+      if (istNull(text)) { try { text = await new Promise((res, rej) => { const r = new FileReader(); r.onload = e => res(e.target.result); r.onerror = rej; r.readAsText(file, 'utf-8'); }); } catch(e) {} }
+      if (istNull(text)) throw new Error('Datei konnte nicht gelesen werden');
 
       try {
         const bundle = JSON.parse(text);
-        if (bundle.files) {
-          log('JSON-Bundle erkannt ✅', 'ok');
-          verarbeiteBundle(bundle);
-          return;
-        }
-      } catch(e) {
-        throw new Error('JSON ungültig: ' + e.message);
-      }
+        if (bundle.files) { log('JSON-Bundle erkannt ✅', 'ok'); verarbeiteBundle(bundle); return; }
+      } catch(e) { throw new Error('JSON ungültig: ' + e.message); }
     }
 
-    // ZIP-Pfad (Fallback für alte Bundles)
-    const rawBuffer = await new Promise((res, rej) => {
-      const r = new FileReader();
-      r.onload = e => res(e.target.result);
-      r.onerror = rej;
-      r.readAsArrayBuffer(file);
-    });
+    // ZIP-Fallback
+    const rawBuffer = await new Promise((res, rej) => { const r = new FileReader(); r.onload = e => res(e.target.result); r.onerror = rej; r.readAsArrayBuffer(file); });
     const magic = new Uint8Array(rawBuffer.slice(0,4));
-    const isPK = magic[0]===0x50 && magic[1]===0x4B;
-    if (!isPK) throw new Error('Datei ist weder JSON noch ZIP');
-
+    if (!(magic[0]===0x50 && magic[1]===0x4B)) throw new Error('Datei ist weder JSON noch ZIP');
     const zip = await JSZip.loadAsync(rawBuffer);
     _files = {};
     const chips = [];
-    const alleZipDateien = Object.keys(zip.files);
-    log('Dateien im ZIP: ' + alleZipDateien.filter(p => !zip.files[p].dir).join(', '), 'info');
-
     for (const [zipPath, zipFile] of Object.entries(zip.files)) {
       if (zipFile.dir) continue;
-      // Normiere Pfad: entferne beliebig tief verschachtelte führende Ordner
-      // update-v2.0.9/js/pages.js → js/pages.js
-      // update-v2.0.9/index.html  → index.html
       const parts = zipPath.split('/');
-      // Erste Ebene ist immer der Ordnername (update-vX.Y.Z), rest ist der echte Pfad
       const normiert = parts.length >= 2 ? parts.slice(1).join('/') : parts[0];
-
-      if (!normiert) continue; // leerer Pfad nach strip
-
+      if (!normiert) continue;
       const mapping = REPO_MAP[normiert];
-      if (!mapping) {
-        log('Übersprungen: ' + normiert, 'warn');
-        continue;
-      }
-
+      if (!mapping) { log('Übersprungen: ' + normiert, 'warn'); continue; }
       const content = await zipFile.async('base64');
-      _files[normiert] = { ...mapping, content, zipPath };
+      _files[normiert] = { ...mapping, content };
       chips.push('<span class="chip chip-green">✅ ' + normiert + '</span>');
-      log('Erkannt: ' + normiert + ' → ' + (mapping.repo === 'repo1' ? 'ortswehr' : 'ob3s.github.io'), 'ok');
-      // Changelog sofort anzeigen wenn version.json oder changes.json erkannt
-      if (normiert === 'version.json') {
-        try {
-          const vRaw = atob(content);
-          const v = JSON.parse(vRaw).version || '';
-          if (v) { _detectedVersion = v; zeigeChangelog(v, _detectedChanges); }
-        } catch(e) {}
-      }
-      if (normiert === 'changes.json') {
-        try {
-          const ch = JSON.parse(atob(content));
-          _detectedChanges = ch.punkte || [];
-          if (_detectedVersion) zeigeChangelog(_detectedVersion, _detectedChanges);
-        } catch(e) {}
-      }
+      log('Erkannt: ' + normiert, 'ok');
+      if (normiert === 'version.json') { try { const v = JSON.parse(atob(content)).version||''; if(v){_detectedVersion=v; zeigeChangelog(v,_detectedChanges);} } catch(e){} }
+      if (normiert === 'changes.json') { try { _detectedChanges = JSON.parse(atob(content)).punkte||[]; if(_detectedVersion) zeigeChangelog(_detectedVersion,_detectedChanges); } catch(e){} }
     }
-
     document.getElementById('file-chips').innerHTML = chips.join('');
     const n = Object.keys(_files).length;
-    if (n > 0) {
-      document.getElementById('btn-deploy').disabled = false;
-      document.getElementById('btn-deploy').textContent = '🚀 ' + n + ' Datei' + (n!==1?'en':'') + ' deployen';
-    } else {
-      log('Keine bekannten Dateien erkannt! ZIP-Struktur prüfen.', 'error');
-    }
+    if (n > 0) { document.getElementById('btn-deploy').disabled = false; document.getElementById('btn-deploy').textContent = '🚀 ' + n + ' Datei' + (n!==1?'en':'') + ' deployen'; }
+    else log('Keine bekannten Dateien erkannt!', 'error');
   } catch(e) {
-    log('Datei konnte nicht gelesen werden: ' + e.message, 'error');
+    log('Fehler: ' + e.message, 'error');
     dz.classList.remove('ready');
     document.getElementById('file-name').textContent = '';
     document.getElementById('file-input').value = '';
     document.getElementById('btn-deploy').disabled = true;
-    document.getElementById('btn-deploy').textContent = '🚀 Deployen';
   }
 }
 
-// ── Bundle verarbeiten (JSON-Format) ──
 function verarbeiteBundle(bundle) {
   const version = bundle.version || '';
   if (version) { _detectedVersion = version; zeigeChangelog(version, bundle.punkte); }
   _files = {};
   for (const [name, b64] of Object.entries(bundle.files || {})) {
-    // Erst direkt suchen, dann mit Präfix-Entfernung (für ZIP-Bundles)
     const normiert = REPO_MAP[name] ? name : name.replace(/^[^/]+\//, '');
     const mapping = REPO_MAP[normiert];
     if (mapping) {
       _files[normiert] = { ...mapping, content: b64 };
       log('Erkannt: ' + normiert + ' → ' + (mapping.repo==='repo1'?'ortswehr':'ob3s.github.io'), 'ok');
-      if (normiert === 'changes.json') {
-        try { _detectedChanges = JSON.parse(atob(b64)).punkte||[]; zeigeChangelog(_detectedVersion, _detectedChanges); } catch(e){}
-      }
-      if (normiert === 'version.json') {
-        try { const v = JSON.parse(atob(b64)).version||''; if(v){_detectedVersion=v; zeigeChangelog(v,_detectedChanges);} } catch(e){}
-      }
+      if (normiert === 'changes.json') { try { _detectedChanges = JSON.parse(atob(b64)).punkte||[]; zeigeChangelog(_detectedVersion, _detectedChanges); } catch(e){} }
+      if (normiert === 'version.json') { try { const v = JSON.parse(atob(b64)).version||''; if(v){_detectedVersion=v; zeigeChangelog(v,_detectedChanges);} } catch(e){} }
     }
   }
   const n = Object.keys(_files).length;
-  log(n + ' Datei' + (n!==1?'en':'') + ' bereit zum Deployen', n>0?'ok':'warn');
+  log(n + ' Datei' + (n!==1?'en':'') + ' bereit', n>0?'ok':'warn');
   if (n > 0) document.getElementById('btn-deploy').disabled = false;
   dz.classList.add('ready');
 }
 
-// ── GitHub API ──
+// ── GitHub API ────────────────────────────────────────────
 async function ghRequest(method, url, body) {
   const token = localStorage.getItem('gh_token');
   const res = await fetch(url, {
     method,
-    headers: {
-      'Authorization': 'token ' + token,
-      'Content-Type': 'application/json',
-      'Accept': 'application/vnd.github.v3+json',
-    },
+    headers: { 'Authorization': 'token ' + token, 'Content-Type': 'application/json', 'Accept': 'application/vnd.github.v3+json' },
     body: body ? JSON.stringify(body) : undefined,
   });
-  if (!res.ok && res.status !== 404) {
-    const err = await res.text();
-    throw new Error(res.status + ' ' + err.slice(0,200));
-  }
+  if (!res.ok && res.status !== 404) { const err = await res.text(); throw new Error(res.status + ' ' + err.slice(0,200)); }
   return res.status === 404 ? null : await res.json();
 }
 
 async function pushDatei(repo, path, base64Content, commitMsg) {
   const user = localStorage.getItem('gh_user') || 'Ob3s';
   const url  = `https://api.github.com/repos/${user}/${repo}/contents/${path}`;
-  // Aktuellen SHA holen (nötig für Updates)
   const existing = await ghRequest('GET', url);
   const sha = existing?.sha;
-  const body = {
-    message: commitMsg,
-    content: base64Content,
-    ...(sha ? { sha } : {}),
-  };
-  await ghRequest('PUT', url, body);
+  await ghRequest('PUT', url, { message: commitMsg, content: base64Content, ...(sha ? { sha } : {}) });
 }
 
-// ── Deploy ──
+// ── Deploy ────────────────────────────────────────────────
 async function startDeploy() {
   const token = localStorage.getItem('gh_token');
-  if (!token) { log('Kein Token gespeichert! Einstellungen öffnen.', 'error'); return; }
+  if (!token) { log('Kein Token!', 'error'); return; }
 
   const dateien = Object.entries(_files);
-  if (!dateien.length) { log('Keine Dateien zum Deployen', 'error'); return; }
+  if (!dateien.length) { log('Keine Dateien', 'error'); return; }
 
-  const user  = localStorage.getItem('gh_user')  || 'Ob3s';
-  const repo1 = localStorage.getItem('gh_repo1') || 'ortswehr';
-  const repo2 = localStorage.getItem('gh_repo2') || 'ob3s.github.io';
+  // PROD-Bestätigung
+  if (_env === 'prod') {
+    if (!confirm('⚠️ PROD-Deploy!\n\nDieser Build geht an alle Kameraden.\nWirklich deployen?')) return;
+  }
+
+  const user     = localStorage.getItem('gh_user')     || 'Ob3s';
+  const repo1    = _env === 'dev'
+    ? (localStorage.getItem('gh_repo1_dev') || 'ortswehr-dev')
+    : (localStorage.getItem('gh_repo1')     || 'ortswehr');
+  const repo2    = localStorage.getItem('gh_repo2') || 'ob3s.github.io';
+
+  log(`Deploy → ${_env.toUpperCase()} (${repo1})`, _env === 'prod' ? 'warn' : 'head');
 
   document.getElementById('btn-deploy').disabled = true;
   document.getElementById('result-ok').style.display = 'none';
   document.getElementById('progress-wrap').style.display = 'block';
   document.getElementById('hdr-status').textContent = 'deploye...';
 
-  // Version aus version.json extrahieren (falls vorhanden)
   let version = '';
-  if (_files['version.json']) {
-    try {
-      const vRaw = atob(_files['version.json'].content);
-      version = JSON.parse(vRaw).version || '';
-    } catch(e) {}
-  }
-  // Commit-Message aus changes.json aufbauen falls vorhanden
-  let commitMsg = version ? `v${version}` : `Update ${new Date().toLocaleDateString('de-DE')}`;
+  if (_files['version.json']) { try { version = JSON.parse(atob(_files['version.json'].content)).version || ''; } catch(e) {} }
+
+  let commitMsg = version ? `v${version} [${_env}]` : `Update ${new Date().toLocaleDateString('de-DE')} [${_env}]`;
   if (_files['changes.json']) {
     try {
       const ch = JSON.parse(atob(_files['changes.json'].content));
       const punkte = (ch.punkte || []).map(p => '- ' + p).join('\n');
-      commitMsg = `v${version}\n\n${punkte}`;
+      commitMsg = `v${version} [${_env}]\n\n${punkte}`;
     } catch(e) {}
   }
-  log('Commit-Message:\n' + commitMsg, 'head');
 
   let ok = 0, fehler = 0;
   for (let i = 0; i < dateien.length; i++) {
     const [normiert, info] = dateien[i];
     const repo = info.repo === 'repo1' ? repo1 : repo2;
-    const pct  = Math.round((i / dateien.length) * 100);
-    document.getElementById('prog-fill').style.width  = pct + '%';
-    document.getElementById('prog-text').textContent  = `${i+1}/${dateien.length}: ${normiert}`;
-    log(`Pushe ${normiert} → ${repo}/${info.path}`, 'info');
-    try {
-      await pushDatei(repo, info.path, info.content, commitMsg);
-      log(`✅ ${normiert}`, 'ok');
-      ok++;
-    } catch(e) {
-      log(`❌ ${normiert}: ${e.message}`, 'error');
-      fehler++;
-    }
+    document.getElementById('prog-fill').style.width = Math.round((i / dateien.length) * 100) + '%';
+    document.getElementById('prog-text').textContent = `${i+1}/${dateien.length}: ${normiert}`;
+    log(`Pushe ${normiert} → ${repo}`, 'info');
+    try { await pushDatei(repo, info.path, info.content, commitMsg); log(`✅ ${normiert}`, 'ok'); ok++; }
+    catch(e) { log(`❌ ${normiert}: ${e.message}`, 'error'); fehler++; }
   }
 
   document.getElementById('prog-fill').style.width = '100%';
@@ -662,17 +507,12 @@ async function startDeploy() {
   if (ok > 0) {
     document.getElementById('result-ok').style.display = 'block';
     document.getElementById('result-detail').textContent =
-      ok + ' Datei' + (ok!==1?'en':'') + ' gepusht' + (fehler ? ` · ${fehler} Fehler` : '') +
-      (version ? ` · v${version}` : '');
-    log(`Deploy abgeschlossen: ${ok} OK, ${fehler} Fehler`, ok && !fehler ? 'ok' : 'warn');
-  } else {
-    log('Deploy fehlgeschlagen!', 'error');
+      `${ok} Datei${ok!==1?'en':''} gepusht${fehler ? ` · ${fehler} Fehler` : ''} · v${version} · ${_env.toUpperCase()}`;
   }
-
   document.getElementById('btn-deploy').disabled = false;
 }
 
-// ── Service Worker + Update-Erkennung ──
+// ── Service Worker ────────────────────────────────────────
 let _newSW = null;
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('./sw.js').then(reg => {
@@ -684,21 +524,12 @@ if ('serviceWorker' in navigator) {
         }
       });
     });
-    // Sofort auf Updates prüfen
     reg.update();
   }).catch(() => {});
-
-  navigator.serviceWorker.addEventListener('controllerchange', () => {
-    window.location.reload();
-  });
+  navigator.serviceWorker.addEventListener('controllerchange', () => window.location.reload());
 }
+window.installUpdate = () => { if (_newSW) _newSW.postMessage('skipWaiting'); else window.location.reload(); };
 
-window.installUpdate = () => {
-  if (_newSW) { _newSW.postMessage('skipWaiting'); }
-  else { window.location.reload(); }
-};
-
-// Init
 ladeSettings();
 </script>
 </body>
