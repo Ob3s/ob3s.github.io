@@ -345,20 +345,41 @@ function zeigeChangelog(version, punkte) {
 // mit der Version aus dem Bundle. Kein manuelles Anpassen mehr nötig.
 function patchIndexVersion(b64Content, version) {
   try {
-    let html = new TextDecoder().decode(Uint8Array.from(atob(b64Content), c => c.charCodeAt(0)));
-    const patched = html.replace(
-      /(<meta\s+name="app-version"\s+content=")[^"]*(")/,
+    // Sauber dekodieren: base64 → Uint8Array → UTF-8 String
+    const bytes = Uint8Array.from(atob(b64Content), c => c.charCodeAt(0));
+    let html = new TextDecoder('utf-8').decode(bytes);
+
+    // Robuster Ersatz: findet den Tag unabhängig von Attribut-Reihenfolge und Whitespace
+    const before = html;
+    html = html.replace(
+      /(<meta\b[^>]*\bname="app-version"[^>]*\bcontent=")[^"]*(")/,
       `$1${version}$2`
     );
-    if (patched === html) {
+    // Fallback: content vor name
+    if (html === before) {
+      html = html.replace(
+        /(<meta\b[^>]*\bcontent=")[^"]*("[^>]*\bname="app-version"[^>]*>)/,
+        `$1${version}$2`
+      );
+    }
+
+    if (html === before) {
       log('⚠️ app-version Meta-Tag nicht gefunden in index.html', 'warn');
     } else {
       log(`✅ index.html: app-version → ${version}`, 'ok');
     }
-    return btoa(unescape(encodeURIComponent(patched)));
+
+    // Sauber re-enkodieren: UTF-8 String → Uint8Array → base64
+    const encoded = new TextEncoder().encode(html);
+    let b64 = '';
+    const chunk = 8192;
+    for (let i = 0; i < encoded.length; i += chunk) {
+      b64 += String.fromCharCode(...encoded.subarray(i, i + chunk));
+    }
+    return btoa(b64);
   } catch(e) {
     log('⚠️ index.html patchen fehlgeschlagen: ' + e.message, 'warn');
-    return b64Content; // Original zurückgeben, nicht abbrechen
+    return b64Content;
   }
 }
 
