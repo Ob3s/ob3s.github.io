@@ -1,6 +1,5 @@
-const CACHE = 'ortswehr-deploy-v4';
+const CACHE = 'ortswehr-deploy-v5';
 const STATIC = ['./manifest.json', './icons/icon-192.png', './icons/icon-512.png'];
-
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(STATIC)));
   self.skipWaiting();
@@ -12,12 +11,10 @@ self.addEventListener('activate', e => {
   self.clients.claim();
 });
 self.addEventListener('fetch', e => {
-  // Icons/Manifest: cache-first
   if (STATIC.some(s => e.request.url.includes(s.replace('./', '')))) {
     e.respondWith(caches.match(e.request).then(r => r || fetch(e.request)));
     return;
   }
-  // index.html + alles andere: network-first
   e.respondWith(
     fetch(e.request).then(res => {
       const clone = res.clone();
@@ -26,8 +23,6 @@ self.addEventListener('fetch', e => {
     }).catch(() => caches.match(e.request))
   );
 });
-
-// Update-Benachrichtigung an alle Clients
 self.addEventListener('message', e => {
   if (e.data === 'skipWaiting') self.skipWaiting();
 });
