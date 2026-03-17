@@ -7,7 +7,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Deploy">
 <meta name="theme-color" content="#cc2200">
-<meta name="app-version" content="">
+<meta name="app-version" content="20260317131936">
 <link rel="manifest" href="manifest.json">
 <title>Ortswehr Deploy</title>
 <style>
@@ -166,12 +166,6 @@
     <span class="logo">🚒</span>
     <h1>Ortswehr Deploy</h1>
     <span class="version" id="hdr-version" style="opacity:0.6"></span>
-    <script>
-      fetch('./version.json?t=' + Date.now(), { cache: 'no-store' })
-        .then(r => r.json()).then(d => {
-          if (d.version) document.getElementById('hdr-version').textContent = 'v' + d.version;
-        }).catch(() => {});
-    </script>
     <span class="version" id="hdr-status">bereit</span>
   </header>
 
@@ -247,6 +241,10 @@
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <script>
+
+// ── Version: aus Meta-Tag (wird beim Build automatisch gesetzt) ──
+const _deployVersion = document.querySelector('meta[name="app-version"]')?.content;
+if (_deployVersion) document.getElementById('hdr-version').textContent = _deployVersion;
 
 // ── Environment ──────────────────────────────────────────
 let _env = localStorage.getItem('deploy_env') || 'dev';
