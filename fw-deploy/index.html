@@ -167,7 +167,8 @@
   <header>
     <span class="logo">🚒</span>
     <h1>Ortswehr Deploy</h1>
-    <span class="version" id="hdr-version" style="opacity:0.6">v2.3</span>
+    <span class="version" id="hdr-version" style="opacity:0.6"></span>
+    <script>document.getElementById('hdr-version').textContent='v'+(document.querySelector('meta[name="app-version"]')?.content||'')</script>
     <span class="version" id="hdr-status">bereit</span>
   </header>
 
