@@ -7,7 +7,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Deploy">
 <meta name="theme-color" content="#cc2200">
-<meta name="app-version" content="2.5">
+<meta name="app-version" content="">
 <link rel="manifest" href="manifest.json">
 <title>Ortswehr Deploy</title>
 <style>
@@ -166,7 +166,12 @@
     <span class="logo">🚒</span>
     <h1>Ortswehr Deploy</h1>
     <span class="version" id="hdr-version" style="opacity:0.6"></span>
-    <script>document.getElementById('hdr-version').textContent='v'+(document.querySelector('meta[name="app-version"]')?.content||'')</script>
+    <script>
+      fetch('./version.json?t=' + Date.now(), { cache: 'no-store' })
+        .then(r => r.json()).then(d => {
+          if (d.version) document.getElementById('hdr-version').textContent = 'v' + d.version;
+        }).catch(() => {});
+    </script>
     <span class="version" id="hdr-status">bereit</span>
   </header>
 
@@ -562,28 +567,8 @@ window.installUpdate = () => { if (_newSW) _newSW.postMessage('skipWaiting'); el
 ladeSettings();
 
 // ── Update-Prüfung ───────────────────────────────────────
-window.pruefeAufUpdate = async () => {
-  try {
-    const res = await fetch('./version.json?t=' + Date.now(), { cache: 'no-store' });
-    const { version } = await res.json();
-    const lokal = document.querySelector('meta[name="app-version"]')?.content;
-    if (lokal && version && version !== lokal) {
-      const banner = document.getElementById('update-banner');
-      if (banner) banner.classList.add('show');
-      document.getElementById('update-btn').onclick = async () => {
-        document.getElementById('update-btn').textContent = '⏳ Wird aktualisiert...';
-        try {
-          const regs = await navigator.serviceWorker.getRegistrations();
-          await Promise.all(regs.map(r => r.unregister()));
-          const keys = await caches.keys();
-          await Promise.all(keys.map(k => caches.delete(k)));
-        } catch(e) {}
-        window.location.reload(true);
-      };
-    }
-  } catch(e) {}
-};
-setTimeout(pruefeAufUpdate, 1500);
+// Update-Prüfung: nur über Service Worker (updatefound-Event oben)
+// Keine Meta-Tag-Vergleiche mehr – version.json ist die einzige Quelle
 </script>
 </body>
 </html>
