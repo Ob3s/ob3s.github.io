@@ -7,7 +7,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Deploy">
 <meta name="theme-color" content="#cc2200">
-<meta name="app-version" content="20260317131936">
+<meta name="app-version" content="20260318105405">
 <link rel="manifest" href="manifest.json">
 <title>Ortswehr Deploy</title>
 <style>
@@ -338,48 +338,6 @@ function zeigeChangelog(version, punkte) {
   el.style.display = 'block';
 }
 
-// ── Version in index.html automatisch patchen ─────────────
-// Wird vor dem Deploy aufgerufen – ersetzt den app-version Meta-Tag
-// mit der Version aus dem Bundle. Kein manuelles Anpassen mehr nötig.
-function patchIndexVersion(b64Content, version) {
-  try {
-    // Sauber dekodieren: base64 → Uint8Array → UTF-8 String
-    const bytes = Uint8Array.from(atob(b64Content), c => c.charCodeAt(0));
-    let html = new TextDecoder('utf-8').decode(bytes);
-
-    // Robuster Ersatz: findet den Tag unabhängig von Attribut-Reihenfolge und Whitespace
-    const before = html;
-    html = html.replace(
-      /(<meta\b[^>]*\bname="app-version"[^>]*\bcontent=")[^"]*(")/,
-      `$1${version}$2`
-    );
-    // Fallback: content vor name
-    if (html === before) {
-      html = html.replace(
-        /(<meta\b[^>]*\bcontent=")[^"]*("[^>]*\bname="app-version"[^>]*>)/,
-        `$1${version}$2`
-      );
-    }
-
-    if (html === before) {
-      log('⚠️ app-version Meta-Tag nicht gefunden in index.html', 'warn');
-    } else {
-      log(`✅ index.html: app-version → ${version}`, 'ok');
-    }
-
-    // Sauber re-enkodieren: UTF-8 String → Uint8Array → base64
-    const encoded = new TextEncoder().encode(html);
-    let b64 = '';
-    const chunk = 8192;
-    for (let i = 0; i < encoded.length; i += chunk) {
-      b64 += String.fromCharCode(...encoded.subarray(i, i + chunk));
-    }
-    return btoa(b64);
-  } catch(e) {
-    log('⚠️ index.html patchen fehlgeschlagen: ' + e.message, 'warn');
-    return b64Content;
-  }
-}
 
 // ── Drag & Drop ──────────────────────────────────────────
 const dz = document.getElementById('dropzone');
@@ -525,13 +483,7 @@ async function startDeploy() {
     try { version = JSON.parse(atob(_files['version.json'].content)).version || ''; } catch(e) {}
   }
 
-  // ── NEU: index.html automatisch patchen ──────────────────
-  // Die Version wird direkt in den Meta-Tag geschrieben, sodass
-  // die Update-Prüfung nach dem Deploy sofort greift.
-  if (version && _files['index.html']) {
-    _files['index.html'].content = patchIndexVersion(_files['index.html'].content, version);
-  }
-  // ─────────────────────────────────────────────────────────
+  // index.html wird bereits beim Bundlen korrekt gepatcht – kein Re-Patching nötig
 
   let commitMsg = version ? `v${version} [${_env}]` : `Update ${new Date().toLocaleDateString('de-DE')} [${_env}]`;
   if (_files['changes.json']) {
@@ -552,6 +504,38 @@ async function startDeploy() {
     try { await pushDatei(repo, info.path, info.content, commitMsg); log(`✅ ${normiert}`, 'ok'); ok++; }
     catch(e) { log(`❌ ${normiert}: ${e.message}`, 'error'); fehler++; }
   }
+
+  // ── GitHub Pages Trigger ──────────────────────────────────
+  // Leerer Commit auf dem Branch um Pages-Rebuild sicher auszulösen
+  if (ok > 0) {
+    try {
+      log('Triggere GitHub Pages Rebuild…', 'info');
+      const user   = localStorage.getItem('gh_user') || 'Ob3s';
+      // Letzten Commit holen
+      const refUrl = `https://api.github.com/repos/${user}/${repo1}/git/ref/heads/gh-pages`;
+      const refData = await ghRequest('GET', refUrl);
+      const sha = refData?.object?.sha;
+      if (sha) {
+        // Tree des letzten Commits holen
+        const commitData = await ghRequest('GET', `https://api.github.com/repos/${user}/${repo1}/git/commits/${sha}`);
+        const treeSha = commitData?.tree?.sha;
+        if (treeSha) {
+          // Neuen Commit ohne Änderungen erstellen
+          const newCommit = await ghRequest('POST', `https://api.github.com/repos/${user}/${repo1}/git/commits`, {
+            message: `[pages-trigger] v${version} [${_env}]`,
+            tree: treeSha,
+            parents: [sha]
+          });
+          // Branch auf neuen Commit zeigen
+          await ghRequest('PATCH', refUrl, { sha: newCommit.sha, force: false });
+          log('✅ Pages-Rebuild ausgelöst', 'ok');
+        }
+      }
+    } catch(e) {
+      log('⚠️ Pages-Trigger fehlgeschlagen: ' + e.message, 'warn');
+    }
+  }
+  // ─────────────────────────────────────────────────────────
 
   document.getElementById('prog-fill').style.width = '100%';
   document.getElementById('prog-text').textContent = 'Fertig!';
