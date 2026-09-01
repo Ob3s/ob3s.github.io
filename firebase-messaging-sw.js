@@ -18,6 +18,7 @@ const KONFIG = {
     appId: "1:170034438620:web:f2e40bf21b6a9b6987ef19",
     url: 'https://ob3s.github.io/ortswehr/',
     icon: '/ortswehr/icons/icon-192.png',
+    reaktionUrl: 'https://europe-west3-ffw-oegeln-791ca.cloudfunctions.net/pushReaktion',
   },
   dev: {
     apiKey: "AIzaSyAiG5H2bMIRqhMXJcOhn_GWaEPVAPlKm8k",
@@ -28,6 +29,7 @@ const KONFIG = {
     appId: "1:1083789051573:web:90aea329bd0d903c51a0fc",
     url: 'https://ob3s.github.io/ortswehr-dev/',
     icon: '/ortswehr-dev/icons/icon-192.png',
+    reaktionUrl: 'https://europe-west3-ffw-oegeln-dev.cloudfunctions.net/pushReaktion',
   },
 };
 const env = new URL(self.location.href).searchParams.get('env') === 'dev' ? 'dev' : 'prod';
@@ -45,6 +47,13 @@ messaging.onBackgroundMessage(payload => {
   // mitgeschickt) - Fallback auf die zu diesem Registrierungs-env passende URL, falls eine ältere
   // Cloud-Function-Version das Feld noch nicht mitschickt.
   const zielUrl = payload.data?.url || ziel.url;
+  const uebungId = payload.data?.uebungId || '';
+  const userId   = payload.data?.userId || '';
+  const sig      = payload.data?.sig || '';
+  // Daumen-hoch/-runter direkt in der Benachrichtigung: nur möglich, wenn die Cloud Function beim
+  // Versenden eine Signatur mitgegeben hat (s. reaktionSignatur() in ortswehr-functions/index.js -
+  // ohne die kein Nachweis, dass die Reaktion wirklich von diesem Kameraden stammt).
+  const mitReaktionsButtons = alarm && uebungId && userId && sig;
   // Nicht anzeigen wenn genau DIESE Umgebung (nicht die jeweils andere) schon im Vordergrund ist -
   // onMessage() dort übernimmt dann die Anzeige (Toast + Ton).
   return self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(clients => {
@@ -57,18 +66,43 @@ messaging.onBackgroundMessage(payload => {
       tag:     alarm ? 'einsatz' : 'allgemein',
       vibrate: alarm ? [200,100,200,100,200,100,400] : [200,100,200],
       requireInteraction: alarm,
-      data:    { url: zielUrl },
+      data:    { url: zielUrl, uebungId, userId, sig },
+      actions: mitReaktionsButtons ? [
+        { action: 'reagieren_ja',   title: '👍 Komme' },
+        { action: 'reagieren_nein', title: '👎 Komme nicht' },
+      ] : [],
     });
   });
 });
 
 self.addEventListener('notificationclick', e => {
   e.notification.close();
-  const url = e.notification.data?.url || ziel.url;
+  const { url, uebungId, userId, sig } = e.notification.data || {};
+  const zielUrl = url || ziel.url;
+
+  // Reaktions-Button: direkt an die Cloud Function melden, App bleibt zu - kein Fensterwechsel
+  // nötig, nur eine kurze Bestätigung als eigene (nicht-alarmierende) Benachrichtigung.
+  if ((e.action === 'reagieren_ja' || e.action === 'reagieren_nein') && uebungId && userId && sig) {
+    const status = e.action === 'reagieren_ja' ? 'bestaetigt' : 'kommt_nicht';
+    e.waitUntil(
+      fetch(ziel.reaktionUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ uebungId, userId, status, sig }),
+      })
+        .then(res => self.registration.showNotification(
+          res.ok ? '✅ Reaktion gespeichert' : '⚠️ Reaktion fehlgeschlagen',
+          { body: status === 'bestaetigt' ? '👍 Komme' : '👎 Komme nicht', tag: 'reaktion-bestaetigung', icon: ziel.icon }
+        ))
+        .catch(() => self.registration.showNotification('⚠️ Reaktion fehlgeschlagen', { body: 'Bitte in der App nachtragen.', tag: 'reaktion-bestaetigung', icon: ziel.icon }))
+    );
+    return;
+  }
+
   e.waitUntil(clients.matchAll({ type: 'window', includeUncontrolled: true }).then(wins => {
     for (const win of wins) {
-      if (win.url.startsWith(url)) { win.focus(); return; }
+      if (win.url.startsWith(zielUrl)) { win.focus(); return; }
     }
-    return clients.openWindow(url);
+    return clients.openWindow(zielUrl);
   }));
 });
