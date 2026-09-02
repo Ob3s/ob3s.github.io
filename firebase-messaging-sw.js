@@ -41,6 +41,9 @@ const messaging = firebase.messaging();
 
 messaging.onBackgroundMessage(payload => {
   const alarm = payload.data?.alarm === 'true';
+  // Empfänger hat sich als nicht verfügbar gemeldet: Meldung kommt trotzdem (inkl. Reaktions-
+  // Buttons), nur ohne Ton/Vibration - s. benachrichtigeOrtswehr()/sendPushNotification.
+  const stumm = payload.data?.stumm === 'true';
   const title = payload.notification?.title || payload.data?.title || '🚒 Ortswehr';
   const body  = payload.notification?.body  || payload.data?.body  || '';
   // Ziel-URL kommt bevorzugt aus dem Payload selbst (von der Cloud Function pro Umgebung
@@ -64,7 +67,8 @@ messaging.onBackgroundMessage(payload => {
       icon:    ziel.icon,
       badge:   ziel.icon,
       tag:     alarm ? 'einsatz' : 'allgemein',
-      vibrate: alarm ? [200,100,200,100,200,100,400] : [200,100,200],
+      vibrate: stumm ? [] : (alarm ? [200,100,200,100,200,100,400] : [200,100,200]),
+      silent:  stumm,
       requireInteraction: alarm,
       data:    { url: zielUrl, uebungId, userId, sig },
       actions: mitReaktionsButtons ? [
